@@ -29,7 +29,7 @@ Public Enum azgtyp ' für MfGTyp
 End Enum
 Public FPos&
 Public Const obdebug% = False
-'Public Const ConString$ = "DRIVER={MySQL ODBC 5.1 Driver};server=linux;uid=praxis;pwd=***REMOVED***;database=dp;option=" & opti
+'Public Const ConString$ = "DRIVER={MySQL ODBC 5.1 Driver};server=linux;uid=praxis;pwd=...;database=dp;option=" & opti
 'Public cn As New ADODB.Connection
 Public rs As New ADODB.Recordset
 Public rsc As New ADODB.Recordset
@@ -68,6 +68,9 @@ Const GradZ% = 240 ' wird im CommonDialog verwendet, in der Algorithmusquelle: 1
 Const GradZC% = 240 ' wird im CommonDialog verwendet, in der Algorithmusquelle: 360
 Public uVerz$ ' Ausgangsverzeichnis für Dateisuche bei  DBVerb
 Public Const doppelteWeg$ = "DELETE FROM dienstplan WHERE EXISTS(SELECT 0 FROM dienstplan d WHERE d.tag=dienstplan.tag AND d.persnr=dienstplan.PersNr AND d.artnr=dienstplan.artnr AND d.id<dienstplan.id)"
+
+Public obStart% ' ob Startvorgang (da in ConstrFestleg DateiÖffnen-Dialog für die MDB-Datei zeigen und dbcn nicht verbinden)
+
 
 #If doppelt Then
 Public Function syscmd(art%, Optional Inhalt$)
@@ -404,7 +407,7 @@ End Function ' azt(azgtyp) As TbTyp
 ' aufgerufen in: Datenausgeben_Click, MFGRefresh
 Function UrlAnsp(ByVal PNr&, ByVal Bervon As Date, ByVal Berbis As Date, ByVal Cn, ByRef UAA!, Optional ByRef UAB!, Optional ByVal mitdruck%) ' Urlaubsanspruch aktuell, Urlaubsanspruch bisher, mitdruck=1: nur aktuellen Urlaub, 2= auch alten urlaub
  Dim rs0 As New ADODB.Recordset
-' If IsNull(cn) Then cn = "DRIVER={MySQL ODBC 3.51 Driver};server=mitte;uid=praxis;pwd=***REMOVED***;database=dp;option=11"
+' If IsNull(cn) Then cn = "DRIVER={MySQL ODBC 3.51 Driver};server=mitte;uid=praxis;pwd=...;database=dp;option=11"
  Dim austr As Date, ueberschr%
  On Error GoTo fehler
  austr = Cn.Execute("SELECT REPLACE(COALESCE(`aus`,0),'0000-00-00','1899-12-30') austr FROM `" & tbm(tbma) & "` WHERE `persnr` = " & PNr)!austr ' Austritt
@@ -515,3 +518,8 @@ End Function ' ende
 
 Function ausgeb(Ausgabe$)
 End Function ' ausgeb(Ausgabe$)
+
+
+Public Function Key(KeyCode%, Shift%, frm As Form)
+
+End Function

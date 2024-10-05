@@ -261,7 +261,7 @@ Dim EinsNm$(Az0 To azgende - 1)
 Dim EinsFd$(Az0 To azgende - 1)
 Dim EinsWt(Az0 To azgende - 1)
 Dim altFarbe&(Az0 To azgende - 1)
-Dim rAf&
+Dim rAF&
 Dim NoLostFocus%
 Dim BegD As Date, EndD As Date, pn&(), kue$() ' Beginn, Ende, Personalnummern für die Reihenfolge in der Dienstplanseite
 Dim cRow&(Az0 To azgende - 1), cCol&(Az0 To azgende - 1) ' für Tb1 und Cb1 und spätere Änderungen
@@ -1076,7 +1076,7 @@ w1:
     End If ' obschreib
     If (Month(akttag) = 12 And Day(akttag) = 31) Or akttag = bisdat Then ' obschreib
      sql = "INSERT INTO `" & tbm(tbbi) & "`(urlstd,urlaub,überstunden,fortbildung,persnr,jahr,planstunden) VALUES ('" & Str$(UBilh) & "','" & Str$(UBil) & "','" & Str$(ÜBil) & "','" & Str$(FBil) & "'," & Persnr & "," & Year(akttag) & ",'" & Str$(PSt) & "')" ' Apostrophe wegen krummen Zahlen nötig
-     dbv.wCn.Execute sql, rAf
+     dbv.wCn.Execute sql, rAF
     End If
     alttag = akttag
 '     dp.Move 1
@@ -1217,7 +1217,7 @@ Private Sub DatenSpeichern_Click()
  Dim erg$
  erg = InputBox("Daten speichern in Verzeichnis: ")
  If LenB(erg) <> 0 Then
-  erg = machCSVs(dbv.wCn.ConnectionString, erg)
+  erg = machCSVs(dbv.wCn.Properties("Extended Properties"), erg) ' dbv.wCn.ConnectionString, erg)
   MsgBox "Daten von " & Chr(34) & dbv.wCn.Properties("Server Name") & Chr(34) & "/" & dbv.wCn.DefaultDatabase & vbCrLf & " in " & erg & " gespeichert"
  End If
 End Sub ' DatenSpeichern_Click()
@@ -1629,7 +1629,7 @@ Private Sub userlöschen_Click()
   frmL.txtPassword.Visible = False
   frmL.Show 1
   If LenB(frmL.txtUserName) <> 0 Then
-   Call MDI.dbv.wCn.Execute("DELETE FROM `" & tbm(tbul) & "` WHERE user = '" & frmL.txtUserName & "'", rAf)
+   Call MDI.dbv.wCn.Execute("DELETE FROM `" & tbm(tbul) & "` WHERE user = '" & frmL.txtUserName & "'", rAF)
   End If
   frmL.txtPassword.Visible = True
   frmL.txtPassword = altPwd
@@ -1658,7 +1658,7 @@ Private Sub userhinzufügen_Click()
   frmL.Caption = "Hinzuzufügender User"
   frmL.Show 1
   If LenB(frmL.txtUserName) <> 0 And LenB(frmL.txtPassword) <> 0 Then
-   Call MDI.dbv.wCn.Execute("INSERT INTO `" & tbm(tbul) & "`(user,Passwort,hinzugefügt,geändert) VALUES('" & frmL.txtUserName & "',aes_encrypt('" & frmL.txtPassword & "','0&F54'),NOW(),0)", rAf)
+   Call MDI.dbv.wCn.Execute("INSERT INTO `" & tbm(tbul) & "`(user,Passwort,hinzugefügt,geändert) VALUES('" & frmL.txtUserName & "',aes_encrypt('" & frmL.txtPassword & "','0&F54'),NOW(),0)", rAF)
   End If
   frmL.Caption = altcapt
   frmL.txtPassword = altPwd
@@ -2990,7 +2990,7 @@ End Select
 End Function ' fmtText
 
 ' augerufen in EinzelBilanz, MFGRefresh
-Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn, ByRef UAAh!, ByRef UAA!, Optional ByRef UABh!, Optional ByRef UAB!, Optional ByVal mitdruck%)
+Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn As ADODB.Connection, ByRef UAAh!, ByRef UAA!, Optional ByRef UABh!, Optional ByRef UAB!, Optional ByVal mitdruck%)
  On Error GoTo fehler
  Dim rs0 As ADODB.Recordset
  Dim iru%, sql$
@@ -3279,8 +3279,8 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
    '     On Error Resume Next
 '         dbv.wCn.Execute sql, rAF
          Set rs = Nothing
-         myFrag rs, sql, , dbv.wCn, , , rAf
-         If rAf <> 0 Then
+         myFrag rs, sql, , dbv.wCn, , , rAF
+         If rAF <> 0 Then
           obProt = True
           nText = vNS
          End If
@@ -3313,14 +3313,14 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
         sql = "UPDATE `" & tbm(tbdp) & "` set `artnr` = '" & nText & "' WHERE `tag` = " & datform(akttag) & " AND `PersNr` = " & pn(jCol - 1)
 '        Call dbv.wCn.Execute(sql, rAF)
         Set updrs = Nothing
-        myFrag updrs, sql, , dbv.wCn, , , rAf
+        myFrag updrs, sql, , dbv.wCn, , , rAF
         
-        If rAf = 0 Then
+        If rAF = 0 Then
          Set updrs = Nothing
          sql = "INSERT INTO `" & tbm(tbdp) & "`(`ArtNr`,`tag`, `PersNr`) VALUES('" & nText & "'," & datform(akttag) & ",'" & pn(jCol - 1) & "')"
          On Error Resume Next
  '        Call dbv.wCn.Execute(sql, rAF)
-         myFrag updrs, sql, , dbv.wCn, , , rAf
+         myFrag updrs, sql, , dbv.wCn, , , rAF
          If Err.Number <> 0 Then
           MsgBox "Dienstplanart " & nText & " hier im Moment nicht vorgesehen!" & vbCrLf & "Fehlermeldung: " & Err.Description
          End If
@@ -3328,7 +3328,7 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
   '      Else
   '       MsgBox "Datenbankfehler! mehrere Datensätze auf einen Schlag geändert mit: " & "WHERE `tag` = " & datform(akttag) & " AND `PersNr` = " & pn(jcol - 1)
         End If
-        If rAf <> 0 Then
+        If rAF <> 0 Then
          obProt = True
          .Text = nText
   '       Call Einfärben(mitaltFar:=True)
@@ -3403,9 +3403,9 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
      If prüfeUser Then
      erg = MsgBox("Aus `" & Tabl & "` soll folgendes gelöscht werden:" & vbCrLf & sqlwhere & vbCrLf & "Wollen Sie es nicht doch behalten?", vbYesNo, "Sicherheitsrückfrage")
      If erg = vbNo Then
-      dbv.wCn.Execute "DELETE FROM `" & Tabl & "` WHERE " & sqlwhere, rAf
+      dbv.wCn.Execute "DELETE FROM `" & Tabl & "` WHERE " & sqlwhere, rAF
       If Err.Number = 0 Then
-       MsgBox "Aus `" & Tabl & "` wurde" & IIf(rAf = 1, " ", "n ") & rAf & " Zeile" & IIf(rAf = 1, "", "n") & " gelöscht:" & vbCrLf & sqlwhere, , "Rückmeldung von der Datenbank"
+       MsgBox "Aus `" & Tabl & "` wurde" & IIf(rAF = 1, " ", "n ") & rAF & " Zeile" & IIf(rAF = 1, "", "n") & " gelöscht:" & vbCrLf & sqlwhere, , "Rückmeldung von der Datenbank"
       ElseIf Err.Number = -2147467259 Then
        Dim ErrDesc$
        ErrDesc = Err.Description
@@ -3776,7 +3776,7 @@ Private Sub ucMDIKeys_LostFocus()
 End Sub ' ucMDIKeys_LostFocus
 
 Private Sub Vordergrundfarbe2_Click()
-  Dim rAf&
+  Dim rAF&
   If obdebug Then Debug.Print "Vordergrundfarbe2_Click("
   FmCD.CmDlg.CancelError = True
 '  FmCD.CmDlg.DialogTitle = "Vordergrundfarbe 2"
@@ -3785,9 +3785,9 @@ Private Sub Vordergrundfarbe2_Click()
   FmCD.CmDlg.ShowColor
   If Err.Number = 0 Then
    On Error GoTo fehler
-   Call dbv.wCn.Execute("UPDATE `" & tbm(tbei) & "` SET wert = " & FmCD.CmDlg.Color & " WHERE einstellung = 'Vordergrundfarbe 2'", rAf)
-   If rAf = 0 Then
-    Call dbv.wCn.Execute("INSERT INTO `" & tbm(tbei) & "` VALUES('Vordergrundfarbe 2'," & FmCD.CmDlg.Color & ")", rAf)
+   Call dbv.wCn.Execute("UPDATE `" & tbm(tbei) & "` SET wert = " & FmCD.CmDlg.Color & " WHERE einstellung = 'Vordergrundfarbe 2'", rAF)
+   If rAF = 0 Then
+    Call dbv.wCn.Execute("INSERT INTO `" & tbm(tbei) & "` VALUES('Vordergrundfarbe 2'," & FmCD.CmDlg.Color & ")", rAF)
    End If
    VGF2 = FmCD.CmDlg.Color
    Call MFGRefresh(Me.MfGTyp)
@@ -3802,7 +3802,7 @@ fehler:
 End Sub ' Vordergrundfarbe2_Click
 
 Private Sub Vordergrundfarbe1_Click()
-  Dim rAf&
+  Dim rAF&
   If obdebug Then Debug.Print "Vordergrundfarbe1_Click("
   FmCD.CmDlg.CancelError = True
 '  FmCD.CmDlg.DialogTitle = "Vordergrundfarbe 2"
@@ -3811,9 +3811,9 @@ Private Sub Vordergrundfarbe1_Click()
   FmCD.CmDlg.ShowColor
   If Err.Number = 0 Then
    On Error GoTo fehler
-   Call dbv.wCn.Execute("UPDATE `" & tbm(tbei) & "` SET wert = " & FmCD.CmDlg.Color & " WHERE einstellung = 'Vordergrundfarbe 1'", rAf)
-   If rAf = 0 Then
-    Call dbv.wCn.Execute("INSERT INTO `" & tbm(tbei) & "` VALUES('Vordergrundfarbe 1'," & FmCD.CmDlg.Color & ")", rAf)
+   Call dbv.wCn.Execute("UPDATE `" & tbm(tbei) & "` SET wert = " & FmCD.CmDlg.Color & " WHERE einstellung = 'Vordergrundfarbe 1'", rAF)
+   If rAF = 0 Then
+    Call dbv.wCn.Execute("INSERT INTO `" & tbm(tbei) & "` VALUES('Vordergrundfarbe 1'," & FmCD.CmDlg.Color & ")", rAF)
    End If
    VGF1 = FmCD.CmDlg.Color
    Call MFGRefresh(Me.MfGTyp)
@@ -3855,7 +3855,7 @@ fehler:
 End Sub ' Zeilenauswahl_Click()
 
 Private Sub DatenbankErstellen_Click()
- Dim rAf&, erg&, i%
+ Dim rAF&, erg&, i%
  Const opti = 1 + 2 + 8 ' 32 macht die Auswahl bei PatAuswahl sehr langsam
  Dim Server$, User$, pwd$, sql$, treiber$, db$, Benutzer$
  On Error GoTo fehler
@@ -3879,17 +3879,17 @@ Private Sub DatenbankErstellen_Click()
  
  Dim k As TbTyp
  For k = MTBeg To tbende - 1
-  dbv.wCn.Execute "SHOW TABLES LIKE '" & tbm(k) & "'", rAf
-  If rAf = 1 Then
+  dbv.wCn.Execute "SHOW TABLES LIKE '" & tbm(k) & "'", rAF
+  If rAF = 1 Then
    erg = MsgBox("Tabelle '" & tbm(k) & "' existiert schon. Löschen?", vbYesNoCancel)
    Select Case erg
     Case vbYes
      Call dbv.wCn.Execute("DROP TABLE IF EXISTS `" & tbm(k) & "`")
-     rAf = 0
+     rAF = 0
     Case vbCancel: Exit Sub
    End Select
   End If
-  If rAf = 0 Then
+  If rAF = 0 Then
    Select Case k
     Case tbar
      sql = "CREATE TABLE  `" & tbm(tbar) & "` (" & _
@@ -4136,7 +4136,7 @@ Function DtbCreateQueryDef$(QName$, sql$)
   Call myEFrag("CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`" & Forms(0).dbv.uid & "`@`%` SQL SECURITY DEFINER VIEW `" & QName & "` AS " & csql)
   Set cvrs = myEFrag("SHOW TABLES WHERE `tables_in_" & DefDB(DBCn) & "` LIKE '" & QName & "'")
   If cvrs.BOF Then
-   dbv.ausgeb QName & " konnte nicht erstellt werden.", True
+   dbv.Ausgeb QName & " konnte nicht erstellt werden.", True
   Else
 '   Debug.Print QName & " gibts."
   End If
