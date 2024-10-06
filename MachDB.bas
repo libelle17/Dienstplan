@@ -1,4 +1,4 @@
-'Bauanleitung für eine Datenbank wie `//linux1/dp` vom 5.10.24 21:01:06
+'Bauanleitung für eine Datenbank wie `//linux1/dp` vom 6.10.24 00:56:59
 Option Explicit
 Dim cnzCStr$ ' da unter Vista der Connectionstring jetzt nicht mehr aussagekräftig ist
 Dim cnz As New ADODB.connection, FNr&, lErrNr& ' letzter Fehler bei doEx
@@ -553,6 +553,25 @@ Public FUNCTION doMach_dp(DBn$, DBCn AS ADODB.Connection, Optional Server$, Opti
      Call doEx(Str(1, i, 0).Value, True)
     END IF
    END IF
+   Dim fsql$
+   fsql = _
+   "CREATE DEFINER=`praxis`@`%` FUNCTION `obft`(dt DATE) RETURNS float" & _
+   "    NO SQL" & _
+   "    DETERMINISTIC" & _
+   "BEGIN  DECLARE a,b,c,d,e,tag,monat,jahr INT;" & _
+   " DECLARE erg DATE;" & _
+   " SET jahr=YEAR(dt);" & _
+   " SET a=jahr MOD 19; SET b=jahr MOD 4; SET c=jahr MOD 7;" & _
+   " SET d=(19*a+24)MOD 30; SET e=(2*b+4*c+6*d+5)MOD 7; SET Tag=22+d+e; SET monat=3;" & _
+   " IF Tag>31 THEN SET Tag=d+e-9; SET monat=4; ELSEIF Tag=26 && monat=4 THEN SET Tag=19;" & _
+   " ELSEIF Tag=25&&monat=4&&d=28&&e=6&&a>10 THEN SET Tag=18; END IF;" & _
+   " SET erg = STR_TO_DATE(CONCAT(jahr,'-',monat,'-',Tag),'%Y-%m-%d');" & _
+   " SET tag=DAY(dt);" & _
+   " SET monat=MONTH(dt);" & _
+   " IF (tag=1&&monat IN(1,5,11))||(tag=6&&monat=1)||(tag=15&&monat=8)||(tag=3&&monat=10)||(tag IN(24,25,26)&&monat=12)||DATEDIFF(dt,erg)IN(-2,0,1,39,49,50,60)THEN RETURN 1; END IF;" & _
+   " IF DATEDIFF(dt,erg)=-47 THEN RETURN 0.5; END IF;" & _
+   " RETURN 0;"
+   Call doEx(fsql, True)
   Next i
  Next runde
  call doex("SET FOREIGN_KEY_CHECKS = 1",0)
