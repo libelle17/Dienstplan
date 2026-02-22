@@ -858,7 +858,7 @@ Sub tuAusgeben(Optional nurU% = False) ' nur Urlaub
 '    Call ar.Open("SELECT * FROM `" & tbm(tbar) & "` WHERE zusatz = 0", dbv.wCn, adOpenStatic, adLockOptimistic)
     myFrag ar, "SELECT * FROM `" & tbm(tbar) & "` WHERE zusatz = 0", adOpenStatic, dbv.wCn, adLockOptimistic
     If Not ar.BOF Then
-     Print #323, vbCrLf & "<B>Dienstplanarten</B>:" & vbCrLf & "ArtNr" & Chr(9) & Left("Erklärung" & Space(22), 22) & Chr(9) & "Stunden"
+     Print #323, vbCrLf & "<span style='background:#FFCC99'><B>Dienstplanarten</B>:</span>" & vbCrLf & "ArtNr" & Chr(9) & Left("Erklärung" & Space(22), 22) & Chr(9) & "Stunden"
      Do While Not ar.EOF
       Print #323, ar!artnr & Chr(9) & Left(ar!erkl & Space(22), 22) & Chr(9) & ar!Stdn
       ar.Move 1
