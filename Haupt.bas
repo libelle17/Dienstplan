@@ -90,7 +90,7 @@ Public Function syscmd(art%, Optional Inhalt$)
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
 #End If
@@ -363,7 +363,6 @@ Sub ViewsErstellen()
     myEFrag (sql)
 End Sub ' Viewserstellen
 
-
 Public Function tbm$(akttb As TbTyp)
  Select Case akttb
   Case tbma: tbm = "mitarbeiter"
@@ -436,7 +435,7 @@ Function UrlAnsp(ByVal PNr&, ByVal Bervon As Date, ByVal Berbis As Date, ByVal C
    If mitdruck = 2 Then
     Print #323, "Urlaubsanspruchberechnung bisher:"
     Print #323, "Urlaubsanspruch bisher = Urlaubsanspruch bisher * WAZ / WAZv + (Zeitraumende - Zeitraumbeginn) / 365 * Jahresanspruch in Zeitraum"
-    Print #323, CStr(Round(UAB + (Ansprvon - aktab) / 365 * aktUA, 2)) & " = " & CStr(Round(UAB, 2)) & " * " & CStr(WAZ) & " / " & CStr(WAZv) & " + (" & Ansprvon & " - " & aktab & ") / 365 * " & aktUA
+    Print #323, CStr(Round(UAB + (Ansprvon - aktab) / 365 * aktUA, 2)) & " d = " & CStr(Round(UAB, 2)) & " d * " & CStr(WAZ) & " h/Wo / " & CStr(WAZv) & " h/Wo + (" & Ansprvon & " - " & aktab & ") d / 365 d * " & aktUA & " d"
    End If ' mitdruck = 2 Then
    UAB = UAB * WAZ / WAZv + (Ansprvon - aktab) / 365 * aktUA
   End If ' aktab < Ansprvon Then
@@ -448,7 +447,7 @@ Function UrlAnsp(ByVal PNr&, ByVal Bervon As Date, ByVal Berbis As Date, ByVal C
      Print #323, "Urlaubsanspruch aktuell = Urlaubsanspruch aktuell * WAZ / WAZv  + (Zeitraumende - Zeitraumbeginn) / (Jahresende - Jahresbeginn) * Jahresanspruch in Zeitraum"
      ueberschr = True
     End If ' Not ueberschr Then
-    Print #323, CStr(Round(UAA + (Ansprbis - Ansprvon) / 365 * aktUA, 2)) & " = " & CStr(Round(UAA, 2)) & " * " & CStr(WAZ) & " / " & CStr(WAZv) & " + (" & Ansprbis & " - " & Ansprvon & ") / (" & Berbis & " - " & Bervon & ") * " & aktUA
+    Print #323, CStr(Round(UAA + (Ansprbis - Ansprvon) / 365 * aktUA, 2)) & " d = " & CStr(Round(UAA, 2)) & " d * " & CStr(WAZ) & " h/Wo / " & CStr(WAZv) & " h/Wo + (" & Ansprbis & " - " & Ansprvon & ") d / (" & Berbis & " - " & Bervon & ") d * " & aktUA & " d"
    End If ' mitdruck > 0 Then
    UAA = UAA * WAZ / WAZv + (Ansprbis - Ansprvon) / 365 * aktUA
   End If ' Ansprbis >= Bervon Then
@@ -457,7 +456,7 @@ Function UrlAnsp(ByVal PNr&, ByVal Bervon As Date, ByVal Berbis As Date, ByVal C
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
 #End If
@@ -493,7 +492,7 @@ Function datform(DaT) ' for vb-Datumsformat oder vb-double (#)
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
 #End If
@@ -516,7 +515,7 @@ Function ProgEnde(Optional frm)
  End
 End Function ' ende
 
-Function ausgeb(Ausgabe$)
+Function Ausgeb(Ausgabe$)
 End Function ' ausgeb(Ausgabe$)
 
 

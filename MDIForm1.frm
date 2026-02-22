@@ -280,7 +280,7 @@ Private m_iSortType As Integer
 Public WithEvents dbv As DBVerb
 Attribute dbv.VB_VarHelpID = -1
 Public frmL As New frmLogin
-Public User$, Usergeprüft As Date
+Public user$, Usergeprüft As Date
 Public Clip$
 Dim wiederholt%
 Dim obMSH2%
@@ -847,7 +847,7 @@ Sub tuAusgeben(Optional nurU% = False) ' nur Urlaub
 '   Call wp.Open("SELECT * FROM `" & tbm(tbwp) & "` WHERE persnr = " & PersNr & " ORDER BY ab", dbv.wCn, adOpenStatic, adLockOptimistic)
    myFrag wp, "SELECT * FROM `" & tbm(tbwp) & "` WHERE persnr = " & Persnr & " ORDER BY ab", adOpenStatic, dbv.wCn, adLockOptimistic
    If Not wp.BOF Then
-    Print #323, vbCrLf & "<B>Wochenarbeitszeit</B>:" & vbCrLf & "gültig ab" & Chr(9) & "Mo" & Chr(9) & "Di" & Chr(9) & "Mi" & Chr(9) & "Do" & Chr(9) & "Fr" & Chr(9) & "Sa" & Chr(9) & "So" & Chr(9) & "Wo'St." & Chr(9) & "Urlaubstage/Jahr"
+    Print #323, vbCrLf & "<span style='background:#FFCC99'><B>Wochenarbeitszeit</B>:" & vbCrLf & "gültig ab" & Chr(9) & "Mo" & Chr(9) & "Di" & Chr(9) & "Mi" & Chr(9) & "Do" & Chr(9) & "Fr" & Chr(9) & "Sa" & Chr(9) & "So" & Chr(9) & "Wo'St." & Chr(9) & "Urlaubstage/Jahr</span>"
     Do While Not wp.EOF
      If abdat = 0 Then abdat = wp!ab
      Print #323, Round(wp!ab, 1) & Chr(9) & wp!mo & Chr(9) & wp!di & Chr(9) & wp!mi & Chr(9) & wp!Do & Chr(9) & wp!fr & Chr(9) & wp!sa & Chr(9) & wp!so & Chr(9) & wp!WAZ & "  " & Chr(9) & wp!urlaub
@@ -920,9 +920,9 @@ fangnochmalan:
    myFrag zuloe, "DELETE FROM `" & tbm(tbbi) & "` WHERE persnr = " & CStr(Persnr), , dbv.wCn
 '   If persnr = 83 Then Stop
    akttag = abdat
-   sql = "SELECT d.tag,d.artnr,a.Stdn,COALESCE(z.ausbez,0) ausbez, COALESCE(z.urlhaus,0) urlhaus " & vbCrLf & _
+   sql = "SELECT d.tag,d.artnr,COALESCE(a.Stdn)Stdn,COALESCE(z.ausbez,0)ausbez,COALESCE(z.urlhaus,0)urlhaus" & vbCrLf & _
          "FROM `" & tbm(tbdp) & "` d " & vbCrLf & _
-         "LEFT JOIN ausbez z USING (persnr,tag) " & vbCrLf & _
+         "LEFT JOIN ausbez z USING(persnr,tag)" & vbCrLf & _
          "LEFT JOIN `" & tbm(tbar) & "` a ON d.artnr = a.artnr " & vbCrLf & _
          "WHERE persnr = " & Persnr & " GROUP BY d.tag ORDER BY d.tag"
 '   sql = "SELECT * FROM `" & tbm(tbdp) & "` d LEFT JOIN `" & tbm(tbar) & "` a on d.artnr = a.artnr WHERE persnr = " & CStr(persnr) & " AND tag = " & Format(akttag, "yyyymmdd")
@@ -973,7 +973,11 @@ fangnochmalan:
      If Not dp.EOF Then
       If akttag = dp!Tag Then
        ArtDp = dp!artnr
-       aktstd = dp!Stdn
+       If IsNull(dp!Stdn) Then
+        MsgBox "Kann Eintrag " & dp!artnr & " vom " & dp!Tag & " bei " & Kuerzel & " nicht in Stunden umrechnen"
+       Else
+        aktstd = dp!Stdn
+       End If
        If ArtDp = "g" Or ArtDp = "u" Or ArtDp = "uw" Then UrlTagNr = UrlTagNr + 1
        GoTo w0:
       End If
@@ -999,6 +1003,7 @@ w0:
 ''      End If
 '       If PersNr = 82 Then Stop
 '     If ausbez Then Stop
+'      If ArtDp = "u" Then Stop
      Call EinzelBilanz(Persnr, ArtVgb, ArtDp, ausbez, urlhaus, UBilh, UBil, ÜBil, FBil, PSt, akttag, WAZv, mitdruck:=obschreib)
 '       GoTo w1:
 '      End If
@@ -1011,7 +1016,7 @@ w1:
      'If Int(dp!Tag) = #4/14/2020# Then Stop
      Dim sqlteil$, reintct&, rgeaegeae
 '     sqlteil = " FROM quelle.eintraege WHERE zeitpunkt BETWEEN " & Format(akttag, "yyyymmdd") & " AND " & Format(akttag + 1, "yyyymmdd") & " AND (art = '" & kuerzel & "' OR ((inhalt COLLATE latin1_bin LIKE '%Mitarbeiter: " & kuerzel & "%' OR inhalt COLLATE latin1_bin LIKE '% " & kuerzel & "' OR inhalt COLLATE latin1_bin LIKE '% (" & kuerzel & ")') AND NOT inhalt COLLATE latin1_bin LIKE '%mit " & kuerzel & "%'))"
-     sqlteil = " FROM quelle.eintraege WHERE zeitpunkt BETWEEN " & Format(akttag, "yyyymmdd") & " AND " & Format(akttag + 1, "yyyymmdd") & " AND (art = '" & Kuerzel & "' OR ((inhalt LIKE '%Mitarbeiter: " & Kuerzel & "%' OR inhalt LIKE '% " & Kuerzel & "' OR inhalt LIKE '% (" & Kuerzel & ")') AND NOT inhalt LIKE '%mit " & Kuerzel & "%'))"
+     sqlteil = " FROM quelle.eintraege WHERE zeitpunkt BETWEEN " & Format(akttag, "yyyymmdd") & " AND " & Format(akttag + 1, "yyyymmdd") & " AND (art = '" & Kuerzel & "' OR ((inhalt RLIKE 'Mitarbeiter: " & Kuerzel & "[[:>:]]' /* OR inhalt LIKE '% " & Kuerzel & "' */ OR inhalt LIKE '% (" & Kuerzel & ")') AND NOT inhalt LIKE '%mit " & Kuerzel & "%'))"
 '     reint.Open "SELECT COUNT(0) ct" & sqlteil, dbv.wCn, adOpenStatic, adLockReadOnly
      myFrag reint, "SELECT COUNT(0) ct" & sqlteil, adOpenStatic, dbv.wCn, adLockReadOnly
      reintct = reint!ct
@@ -1039,7 +1044,7 @@ w1:
        End If
 '      End If
 '     End If
-'     rgeae.Open "SELECT GROUP_CONCAT(CONCAT(aenddat,': ''',artnr,''' (',user,' ',aendpc,')') ORDER BY aenddat desc separator '; ') geae FROM dp.`" & tbm(tbpr) & "` p WHERE persnr=" & PersNr & " AND tag= " & Format(akttag, "yyyymmdd"), dbv.wCn, adOpenStatic, adLockReadOnly
+'     rgeae.Open "SELECT GROUP_CONCAT(CONCAT(aenddat,': ''',artnr,''' (',user,' ',aendpc,')') ORDER BY aenddat desc SEPARATOR '; ') geae FROM dp.`" & tbm(tbpr) & "` p WHERE persnr=" & PersNr & " AND tag= " & Format(akttag, "yyyymmdd"), dbv.wCn, adOpenStatic, adLockReadOnly
      myFrag rgeae, "SELECT COALESCE(GROUP_CONCAT(CONCAT(aenddat,': ''',artnr,''' (',user,' ',aendpc,')') ORDER BY aenddat DESC SEPARATOR '; '),'') geae FROM dp.`" & tbm(tbpr) & "` p WHERE persnr=" & Persnr & " AND tag= " & Format(akttag, "yyyymmdd"), adOpenStatic, dbv.wCn, adLockReadOnly
      rgeaegeae = rgeae!geae
      If Not nurU Or ArtDp Like "g *" Or ArtDp Like "u *" Or ArtDp Like "uw *" Then
@@ -1075,7 +1080,7 @@ w1:
      End If
     End If ' obschreib
     If (Month(akttag) = 12 And Day(akttag) = 31) Or akttag = bisdat Then ' obschreib
-     sql = "INSERT INTO `" & tbm(tbbi) & "`(urlstd,urlaub,überstunden,fortbildung,persnr,jahr,planstunden) VALUES ('" & Str$(UBilh) & "','" & Str$(UBil) & "','" & Str$(ÜBil) & "','" & Str$(FBil) & "'," & Persnr & "," & Year(akttag) & ",'" & Str$(PSt) & "')" ' Apostrophe wegen krummen Zahlen nötig
+     sql = "REPLACE INTO `" & tbm(tbbi) & "`(urlstd,urlaub,überstunden,fortbildung,persnr,jahr,planstunden) VALUES ('" & Str$(UBilh) & "','" & Str$(UBil) & "','" & Str$(ÜBil) & "','" & Str$(FBil) & "'," & Persnr & "," & Year(akttag) & ",'" & Str$(PSt) & "')" ' Apostrophe wegen krummen Zahlen nötig
      dbv.wCn.Execute sql, rAF
     End If
     alttag = akttag
@@ -1108,7 +1113,7 @@ Public Sub GetOpenOffice()
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
 #End If
@@ -1126,7 +1131,7 @@ Public Sub GetWord()
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
 #End If
@@ -1201,7 +1206,7 @@ Screen.MousePointer = 0 ' vbDefault
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
 #End If
@@ -1264,13 +1269,13 @@ Private Sub Jahr_Click()
 End Sub ' Jahr_Click
 
 Private Sub loggen_Click()
- If LenB(User) = 0 Then
+ If LenB(user) = 0 Then
   Call prüfeUser
  Else
-  User = vNS
+  user = vNS
  End If
- If LenB(User) <> 0 Then
-  MDI.loggen.Caption = User & " auslo&ggen"
+ If LenB(user) <> 0 Then
+  MDI.loggen.Caption = user & " auslo&ggen"
  Else
   MDI.loggen.Caption = "einlo&ggen"
  End If
@@ -2568,17 +2573,17 @@ Private Function prüfeUser%()
  On Error GoTo fehler
  zp = Now
  If zp - Usergeprüft > 1 / 24 / 60 Then
-  User = vNS
+  user = vNS
  End If
- If LenB(User) = 0 Then
+ If LenB(user) = 0 Then
   frmL.txtPassword = vNS
   frmL.Show 1
   prüfeUser = frmL.LoginSucceeded
   If prüfeUser Then
-   User = frmL.txtUserName
-   MDI.loggen.Caption = User & " auslo&ggen"
+   user = frmL.txtUserName
+   MDI.loggen.Caption = user & " auslo&ggen"
   Else
-   User = vNS
+   user = vNS
    MDI.loggen.Caption = "einlo&ggen"
   End If
 '  Stop
@@ -2990,7 +2995,7 @@ End Select
 End Function ' fmtText
 
 ' augerufen in EinzelBilanz, MFGRefresh
-Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn As ADODB.Connection, ByRef UAAh!, ByRef UAA!, Optional ByRef UABh!, Optional ByRef UAB!, Optional ByVal mitdruck%)
+Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn As ADODB.Connection, ByRef UAAh!, ByRef UAA!, Optional ByRef UABh!, Optional ByRef UAB!, Optional ByVal mitdruck%, Optional UBilh!)
  On Error GoTo fehler
  Dim rs0 As ADODB.Recordset
  Dim iru%, sql$
@@ -3001,17 +3006,18 @@ Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn As ADODB.Connection, ByRef U
   ' jtage=Jahrestage(365 oder 366, ab ab):
   ' ,DATEDIFF(DATE(CONCAT(YEAR(IF(abk<@gv AND NOT @obvor,@gv,abk))+1,'0101')),DATE(CONCAT(YEAR(IF(abk<@gv AND NOT @obvor,@gv,abk)),'0101'))) jtage
 '   If Jahr = 2018 Then Stop
+' If UBilh <> 0 Then Stop
    sql = "SELECT " & vbCrLf & _
-   "COALESCE(SUM(urlh),0) urlh,COALESCE(SUM(urlh)/rwaz*5,0,0) urld,COALESCE(CONCAT('Urlaubsanspruch ',IF(obvor,'Übertrag','gesamt'),': ','\n',group_CONCAT(erkl separator '\n'),'\nInsgesamt: ', CAST(ROUND(SUM(urlh),1) AS CHAR(10)),' h, /', CAST(ROUND(rwaz*0.2,1) AS CHAR(10)),' = ', COALESCE( CAST(ROUND(SUM(urlh)/rwaz*5,1) AS CHAR(10)),'0'),' d'),'') Erkl " & vbCrLf & _
-   "FROM (SELECT obvor,urlh, CONCAT(DATE_FORMAT(abk,'%d.%m.%y'),' - ',DATE_FORMAT(ADDDATE(bisk,-1),'%d.%m.%y'),' = ',LPAD(tage,3,' '),' Tage, rWAZ: ',LPAD(rwaz,5,' '),' h/Wo, Url: ',LPAD(i.urlaub,2,' '),' d/a => ',LPAD(ROUND(urlh,1),5,' '),' h, ',LPAD(IF(rwaz,ROUND(urlh/rwaz*5,1),''),4,' '),' d') Erkl,rwaz,persnr " & vbCrLf & _
+   "COALESCE(SUM(urlh),0) urlh,COALESCE(SUM(urlh)/rwaz*5,0,0) urld,COALESCE(CONCAT('Urlaubsanspruch ',IF(obvor,'Übertrag','" & Jahr & "'),': ','\n',GROUP_CONCAT(erkl SEPARATOR '\n'),'\nAnspruch für " & Jahr & ": ', CAST(ROUND(SUM(urlh),1) AS CHAR(10)),' h, /', CAST(ROUND(rwaz*0.2,1) AS CHAR(10)),' h/d = ',COALESCE(CAST(ROUND(SUM(urlh)/rwaz*5,1)AS CHAR(10)),'0'),' d,  /',ROUND(SUM(tage*rwaz*0.2)/SUM(tage),3),' h/d (=durchschnittl.Tagesarbeitsstunden " & Jahr & ") = ',COALESCE(CAST(ROUND(SUM(urlh)/(SUM(tage*rwaz*0.2)/SUM(tage)),1)AS CHAR(10)),'0'),' d\nInsg.(+',RPAD('" & Round(-UBilh, 1) & "h)',10,' '),': ',CAST(ROUND(SUM(urlh)-" & REPLACE$(UBilh, ",", ".") & ",1)AS CHAR(10)),' h, /', CAST(ROUND(rwaz*0.2,1) AS CHAR(10)),' h/d = ',COALESCE(CAST(ROUND((SUM(urlh)-" & REPLACE$(UBilh, ",", ".") & ")/rwaz*5,1)AS CHAR(10)),'0'),' d'),'')Erkl" & vbCrLf & _
+   "FROM (SELECT obvor,urlh,tage,CONCAT(DATE_FORMAT(abk,'%d.%m.%y'),' - ',DATE_FORMAT(ADDDATE(bisk,-1),'%d.%m.%y'),' = ',LPAD(tage,3,' '),' Tage, rWAZ: ',LPAD(rwaz,5,' '),' h/Wo, Url: ',LPAD(i.urlaub,2,' '),' d/a => ',LPAD(ROUND(urlh,1),5,' '),' h, ',LPAD(IF(rwaz,ROUND(urlh/rwaz*5,1),''),4,' '),' d') Erkl,rwaz,persnr " & vbCrLf & _
    "  FROM (SELECT i.*,DATEDIFF(bisk,abk) tage, COALESCE(DATEDIFF(bisk,abk)/IF(obvor,365.24,DATEDIFF(gb,gv))*rwaz*0.2*urlaub,0) Urlh " & vbCrLf & _
-   "   FROM (SELECT IF(ab<gv AND NOT obvor,gv,ab) abk, IF(bis>gb,gb,bis) bisk,rwaz,urlaub,persnr,gv,gb,obvor " & vbCrLf & _
+   "   FROM (SELECT IF(ab<gv AND NOT obvor,gv,ab)abk, IF(bis>gb,gb,bis)bisk,rwaz,urlaub,persnr,gv,gb,obvor " & vbCrLf & _
    "    FROM (SELECT ab " & vbCrLf & _
    "     ,COALESCE((SELECT MIN(ab) FROM `" & tbm(tbwp) & "` WHERE ab>wp.ab AND persnr=wp.persnr) " & vbCrLf & _
    "      ,(SELECT IF(aus>0,aus,DATE(99991231)) FROM `" & tbm(tbma) & "` WHERE persnr=wp.persnr)) bis " & vbCrLf & _
    "     ,IF(waz=0,(SELECT waz FROM " & tbm(tbwp) & " WHERE persnr=wp.persnr AND waz<>0 AND ab<wp.ab ORDER BY ab DESC LIMIT 1),waz) rwaz " & vbCrLf & _
    "     ,urlaub,persnr,obvor,gv " & vbCrLf & _
-   "     ,IF(obvor,gv,adddate(gv,interval 1 year)) gb " & vbCrLf & _
+   "     ,IF(obvor,gv,adddate(gv,INTERVAL 1 YEAR)) gb " & vbCrLf & _
    "     FROM (SELECT " & CStr(iru) & " obvor,DATE(CONCAT(" & CStr(Jahr) & ",'0101')) gv,w.* FROM `" & tbm(tbwp) & "` w) wp " & vbCrLf & _
    "    WHERE persnr=" & CStr(PNr) & ") i " & vbCrLf & _
    "   WHERE  bis>IF(obvor,19000101,gv) AND ab<gb " & vbCrLf & _
@@ -3023,10 +3029,11 @@ Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn As ADODB.Connection, ByRef U
     Cn.Close
     Cn.Open
    End If
-   myFrag rs0, sql, adOpenStatic, Cn, adLockReadOnly
+'   If PNr = 114 And Jahr = 2025 Then Stop
+   myFrag rs0, sql, adOpenStatic, Cn, adLockReadOnly, 7000
 '  sql = "SELECT " & vbCrLf & _
    "@relwaz:=(SELECT IF(ab>" & Format(tzsbd, "yyyymmdd") & " AND waz,waz,38.5) FROM `" & tbm(tbwp) & "` wpi WHERE persnr=i.persnr AND COALESCE((SELECT MIN(ab) FROM `" & tbm(tbwp) & "` WHERE ab>wpi.ab AND persnr=wpi.persnr),(SELECT IF(aus>0,aus,DATE(99991231)) FROM `" & tbm(tbma) & "` WHERE persnr=wpi.persnr))>=@gv ORDER BY ab LIMIT 1) " & vbCrLf & _
-   ",SUM(urlh) urlh,COALESCE(SUM(urlh)/@relwaz*5,0,0) urld,COALESCE(CONCAT('Urlaubsanspruch ',IF(@obvor,'Übertrag','gesamt'),': ','\n',group_CONCAT(erkl separator '\n'),'\nInsgesamt: ', CAST(ROUND(SUM(urlh),1) AS CHAR(10)),' h, /', CAST(@relwaz/5 AS CHAR(10)),' = ', COALESCE( CAST(ROUND(SUM(urlh)/@relwaz*5,1) AS CHAR(10)),'0'),' d'),'') Erkl " & vbCrLf & _
+   ",SUM(urlh) urlh,COALESCE(SUM(urlh)/@relwaz*5,0,0) urld,COALESCE(CONCAT('Urlaubsanspruch ',IF(@obvor,'Übertrag','gesamt'),': ','\n',GROUP_CONCAT(erkl SEPARATOR '\n'),'\nInsgesamt: ', CAST(ROUND(SUM(urlh),1) AS CHAR(10)),' h, /', CAST(@relwaz/5 AS CHAR(10)),' = ', COALESCE( CAST(ROUND(SUM(urlh)/@relwaz*5,1) AS CHAR(10)),'0'),' d'),'') Erkl " & vbCrLf & _
    "FROM ( " & vbCrLf & _
    " SELECT urlh, CONCAT(DATE_FORMAT(abk,'%d.%m.%y'),' - ',DATE_FORMAT(ADDDATE(bis,-1),'%d.%m.%y'),' WAZ: ',i.waz,' h/Wo, Url: ',i.urlaub,' d/a => ',ROUND(urlh,1),' h, ',IF(aktwaz,ROUND(urlh/aktwaz*5,1),''),' d') Erkl,persnr FROM ( " & vbCrLf & _
    "  SELECT i.*,DATEDIFF(bis,abk)*urlaub/(DATEDIFF(DATE(CONCAT(YEAR(IF(abk<@gv AND NOT @obvor,@gv,abk))+1,'0101')),DATE(CONCAT(YEAR(IF(abk<@gv AND NOT @obvor,@gv,abk)),'0101'))))*aktwaz/5 urlh FROM ( " & vbCrLf & _
@@ -3043,7 +3050,7 @@ Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn As ADODB.Connection, ByRef U
    "  ) i " & vbCrLf & _
    " ) i "
 
-'  rs0.Open "SELECT sum(urlh) urlh,coalesce(sum(urlh)/@relwaz*5,0) urld,coalesce(CONCAT('Urlaubsanspruch ',if(obvor,'bisher','aktuell'),': ','\n',group_CONCAT(erkl separator '\n'),'\nInsgesamt: ', CAST(round(sum(urlh),1) as char(10)),' h, /', CAST(@relwaz/5 as char(10)),' = ', coalesce( CAST(round(sum(urlh)/@relwaz*5,1) as char(10)),'0'),' d'),'') Erkl FROM ( " & vbCrLf & _
+'  rs0.Open "SELECT sum(urlh) urlh,coalesce(sum(urlh)/@relwaz*5,0) urld,coalesce(CONCAT('Urlaubsanspruch ',if(obvor,'bisher','aktuell'),': ','\n',GROUP_CONCAT(erkl SEPARATOR '\n'),'\nInsgesamt: ', CAST(round(sum(urlh),1) as char(10)),' h, /', CAST(@relwaz/5 as char(10)),' = ', coalesce( CAST(round(sum(urlh)/@relwaz*5,1) as char(10)),'0'),' d'),'') Erkl FROM ( " & vbCrLf & _
   " select ab,bis,waz,urlaub,urlh, CONCAT(DATE_FORMAT(ab,'%d.%m.%y'),' - ',DATE_FORMAT(bis,'%d.%m.%y'),' (= ', CAST(DATEDIFF(bis,ab) as char(5)),' Tage), WAZ: ',i.waz,' h/Wo, Url: ',i.urlaub,' d/a => ',round(urlh,1),' h, ',round(urlh/aktwaz*5,1),' d') Erkl,obvor FROM ( " & vbCrLf & _
   "  select i.*,DATEDIFF(bis,ab)*urlaub/jtage*aktwaz/5 urlh,if(ab=gv,@relwaz:=aktwaz,0) FROM ( " & vbCrLf & _
   "   select IF(ab<gv AND NOT obvor,gv,ab) ab,DATEDIFF(date(CONCAT(YEAR(if(ab<gv AND NOT obvor,gv,ab))+1,'0101')),date(CONCAT(YEAR(if(ab<gv AND NOT obvor,gv,ab)),'0101'))) jtage,if(bis>gb,gb,bis) bis,waz,if(if(ab<gv AND NOT obvor,gv,ab)>=" & Format(tzsbd, "yyyymmdd") & ",waz,38.5) aktwaz,urlaub,gv,obvor FROM ( " & vbCrLf & _
@@ -3051,7 +3058,7 @@ Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn As ADODB.Connection, ByRef U
   "    ,coalesce((SELECT MIN(ab) FROM `" & tbm(tbwp) & "` WHERE ab>wp.ab and persnr=wp.persnr) " & vbCrLf & _
   "     ,(select IF(aus>0,aus,date(99991231)) FROM `" & tbm(tbma) & "` WHERE persnr=wp.persnr)) bis " & vbCrLf & _
   "    ,waz,urlaub " & vbCrLf & _
-  "    ,gv,if(obvor,gv,adddate(gv,interval 1 year)) gb,obvor " & vbCrLf & _
+  "    ,gv,if(obvor,gv,adddate(gv,INTERVAL 1 YEAR)) gb,obvor " & vbCrLf & _
   "    FROM ( " & vbCrLf & _
   "     select date(CONCAT(" & CStr(Jahr) & ",'0101')) gv, " & CStr(iru) & " obvor, wp.* " & vbCrLf & _
   "     FROM `" & tbm(tbwp) & "` wp " & vbCrLf & _
@@ -3148,7 +3155,7 @@ Function EinzelBilanz(ByVal Persnr&, ByRef ArtVgb$, ByRef ArtDp$, ByVal ausbez!,
   If mitdruck Then
    Print #323, "<span style='background:#FFCC99'>Urlaubsanspruchumrechnung: "
    Print #323, "Urlaubsbilanz nachher " & IIf(WAZ = 0, "[umger.auf 38,5h/Wo]", "") & " = Urlaubsbilanz vorher " & IIf(WAZv = 0, "[umger.auf 38,5h/Wo]", "") & " * Wochenarbeitszeit vorher " & IIf(WAZv = 0, "[umger.auf 38,5h/Wo]", "") & "/ Wochenarbeitszeit nachher" & IIf(WAZ = 0, " [umger.auf 38,5h/Wo]", "")
-   Print #323, CStr(-Round(UBil * WAZvd / WAZd, 2)) & " = " & CStr(-Round(UBil, 2)) & " * " & CStr(Round(WAZvd, 2)) & " / " & CStr(WAZd) & "</span>"
+   Print #323, CStr(-Round(UBil * WAZvd / WAZd, 2)) & " d = " & CStr(-Round(UBil, 2)) & " d * " & CStr(Round(WAZvd, 2)) & " h/Wo / " & CStr(WAZd) & " h/Wo</span>"
   End If
   UBil = UBil * WAZvd / WAZd
  End If
@@ -3161,7 +3168,7 @@ Function EinzelBilanz(ByVal Persnr&, ByRef ArtVgb$, ByRef ArtDp$, ByVal ausbez!,
  If Year(akttag) <> altjahr Then
   Call FTbeleg(Year(akttag))
   If ohneumr = 0 Then
-   Call UrlAnspr(Persnr, Year(akttag), dbv.wCn, UAAh, UAA, UABh, UAB, mitdruck:=IIf(mitdruck, IIf(altjahr, 1, 2), 0))
+   Call UrlAnspr(Persnr, Year(akttag), dbv.wCn, UAAh, UAA, UABh, UAB, mitdruck:=IIf(mitdruck, IIf(altjahr, 1, 2), 0), UBilh:=UBilh)
    UBilh = UBilh - UAAh
    UBil = UBil - UAA
    If altjahr = 0 Then
@@ -3207,7 +3214,7 @@ Function EinzelBilanz(ByVal Persnr&, ByRef ArtVgb$, ByRef ArtDp$, ByVal ausbez!,
   End Select
   If obLoe Then PSt = PSt - VgbStd Else PSt = PSt + VgbStd
   If ausbez Then
-  ÜBil = ÜBil - ausbez
+   ÜBil = ÜBil - ausbez
   End If
   If urlhaus Then UBilh = UBilh + urlhaus: UBil = UBil + urlhaus / WAZ * 5
  Exit Function
@@ -3337,7 +3344,7 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
        End If ' nText <> .Text Then
       End If
       If obProt Then
-       sql = "INSERT INTO `" & tbm(tbpr) & "` (`tag`,`PersNr`,`ArtNrV`,`ArtNr`,`AendDat`,`AendPC`,`AendUser`, `user`) values (" & datform(akttag) & "," & pn(jCol - 1) & ",'" & ArtVgb & "','" & nText & "'," & datform(Now) & ",'" & CptName & "','" & UserName & "','" & User & "')"
+       sql = "INSERT INTO `" & tbm(tbpr) & "` (`tag`,`PersNr`,`ArtNrV`,`ArtNr`,`AendDat`,`AendPC`,`AendUser`, `user`) values (" & datform(akttag) & "," & pn(jCol - 1) & ",'" & ArtVgb & "','" & nText & "'," & datform(Now) & ",'" & CptName & "','" & UserName & "','" & user & "')"
 '       Call dbv.wCn.Execute(sql, rAF)
        Set updrs = Nothing
        myFrag updrs, sql, , dbv.wCn
@@ -3857,11 +3864,11 @@ End Sub ' Zeilenauswahl_Click()
 Private Sub DatenbankErstellen_Click()
  Dim rAF&, erg&, i%
  Const opti = 1 + 2 + 8 ' 32 macht die Auswahl bei PatAuswahl sehr langsam
- Dim Server$, User$, pwd$, sql$, treiber$, db$, Benutzer$
+ Dim Server$, user$, pwd$, sql$, treiber$, db$, Benutzer$
  On Error GoTo fehler
  Server = InputBox("Server für die Erstellung der Tabellen:")
- User = InputBox("Benutzer für die Erstellung der Tabellen auf " & Server)
- pwd = InputBox("Passwort für " & User & " auf " & Server & ":")
+ user = InputBox("Benutzer für die Erstellung der Tabellen auf " & Server)
+ pwd = InputBox("Passwort für " & user & " auf " & Server & ":")
  treiber = InputBox("Treiber für die Tabellenerstellung:", , "MySQL ODBC 5.1 Driver") ' MySQL ODBC 5.1 Driver
  db = InputBox("Datenbank für die Tabellenerstellung:", , "dp")
  Benutzer = InputBox("Benutzer für Tabellenverwendung:")
@@ -4003,7 +4010,7 @@ Private Sub DatenbankErstellen_Click()
 
 ' Call dbv.wCn.Execute("grant all ON * to '" & user & "' WITH GRANT OPTION")
  On Error Resume Next
- Call dbv.wCn.Execute("INSERT INTO mysql.db VALUES('%','" & db & "','" & User & "','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y')")
+ Call dbv.wCn.Execute("INSERT INTO mysql.db VALUES('%','" & db & "','" & user & "','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y')")
  On Error GoTo fehler
  Call dbv.wCn.Execute("FLUSH PRIVILEGES")
  Call dbv.wCn.Execute("GRANT ALL ON * to '" & Benutzer & "' WITH GRANT OPTION")
@@ -4014,7 +4021,7 @@ Private Sub DatenbankErstellen_Click()
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
 #End If
@@ -4109,7 +4116,7 @@ dbv.wCn.Execute "INSERT INTO `" & tbm(tbma) & "` (`PersNr`,`Kuerzel`,`Nachname`,
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
 #End If
@@ -4147,7 +4154,7 @@ Function DtbCreateQueryDef$(QName$, sql$)
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
 #End If
@@ -4206,9 +4213,9 @@ Call vormerken(MfGTyp)
 Select Case MfGTyp
  Case azgdp
   If .MouseCol = 0 Then
-   If LenB(User) <> 0 Then
+   If LenB(user) <> 0 Then
 '    rs.Open "SELECT kaldb, kaltab, kaldatsp FROM `" & tbm(tbma) & "` ma WHERE nachname LIKE '" & User & "'", dbv.wCn, adOpenStatic, adLockReadOnly
-    myFrag rs, "SELECT kaldb, kaltab, kaldatsp FROM `" & tbm(tbma) & "` ma WHERE nachname LIKE '" & User & "'", adOpenStatic, dbv.wCn, adLockReadOnly
+    myFrag rs, "SELECT kaldb, kaltab, kaldatsp FROM `" & tbm(tbma) & "` ma WHERE nachname LIKE '" & user & "'", adOpenStatic, dbv.wCn, adLockReadOnly
     If Not rs.BOF Then
      If IsDate(BegD) Then
       If Not IsNull(rs!kaldb) And Not IsNull(rs!kaltab) And Not IsNull(rs!kaldatsp) Then
@@ -4247,12 +4254,12 @@ Select Case MfGTyp
      .ToolTipText = "Planstunden: " & rs!planstunden
     End If
    ElseIf .MouseRow = 4 Then ' Urlaub
-'    .ToolTipText = dbv.wCn.Execute("SELECT group_concat(case DATE_FORMAT(tag,'%w') when 0 then 'So' when 1 then 'Mo' when 2 then 'Di' when 3 then 'Mi' when 4 then 'Do' when 5 then 'Fr' when 6 then 'Sa' else 'un' end,DATE_FORMAT(tag,', %d.%m.%y '),artnr,'\\\n') FROM `" & tbm(tbdp) & "` WHERE persnr=" & pn(.MouseCol - 1) & " and ArtNr in ('u','uw') and YEAR(tag)=" & Me.Jahr).Fields(0)
+'    .ToolTipText = dbv.wCn.Execute("SELECT GROUP_CONCAT(case DATE_FORMAT(tag,'%w') when 0 then 'So' when 1 then 'Mo' when 2 then 'Di' when 3 then 'Mi' when 4 then 'Do' when 5 then 'Fr' when 6 then 'Sa' else 'un' end,DATE_FORMAT(tag,', %d.%m.%y '),artnr,'\\\n') FROM `" & tbm(tbdp) & "` WHERE persnr=" & pn(.MouseCol - 1) & " and ArtNr in ('u','uw') and YEAR(tag)=" & Me.Jahr).Fields(0)
 '''    dbv.wCn.Close
 '''    dbv.wCn.Open
-'    .ToolTipText = dbv.wCn.Execute("SELECT COALESCE(GROUP_CONCAT(DATE_FORMAT(tag,'%d.%m') separator ','),'') FROM `" & tbm(tbdp) & "` WHERE persnr=" & pn(.MouseCol - 1) & " and ArtNr in ('g','u','uw') and YEAR(tag)=" & Me.Jahr).Fields(0)
+'    .ToolTipText = dbv.wCn.Execute("SELECT COALESCE(GROUP_CONCAT(DATE_FORMAT(tag,'%d.%m') SEPARATOR ','),'') FROM `" & tbm(tbdp) & "` WHERE persnr=" & pn(.MouseCol - 1) & " and ArtNr in ('g','u','uw') and YEAR(tag)=" & Me.Jahr).Fields(0)
     Dim rstag As ADODB.Recordset
-    myFrag rstag, "SELECT COALESCE(GROUP_CONCAT(DATE_FORMAT(tag,'%d.%m') separator ','),'') FROM `" & tbm(tbdp) & "` WHERE persnr=" & pn(.MouseCol - 1) & " and ArtNr in ('g','u','uw') and YEAR(tag)=" & Me.Jahr, adOpenStatic, dbv.wCn, adLockReadOnly
+    myFrag rstag, "SELECT COALESCE(GROUP_CONCAT(DATE_FORMAT(tag,'%d.%m') SEPARATOR ','),'') FROM `" & tbm(tbdp) & "` WHERE persnr=" & pn(.MouseCol - 1) & " and ArtNr in ('g','u','uw') and YEAR(tag)=" & Me.Jahr, adOpenStatic, dbv.wCn, adLockReadOnly
     If rstag.State <> 0 Then If Not rstag.BOF Then .ToolTipText = rstag.Fields(0)
    ElseIf .MouseRow > .FixedRows Then
     tt = vNS
@@ -4277,8 +4284,14 @@ Select Case MfGTyp
       tt = "Keine Einträge zu " & BegD + Reihe - 1 - SZZ & " zu " & rs!Vorname & " " & rs!Nachname
      End If
     Else
+     Dim rs0 As ADODB.Recordset
      Do While Not rs.EOF
-      tt = tt & rs!ArtNrV & "->" & rs!artnr & "(" & rs!aenddat & "/" & rs!User & "), "
+      If tt = "" Then
+       myFrag rs0, "SELECT CASE WEEKDAY(Dt)WHEN 0 THEN Mo WHEN 1 THEN Di WHEN 2 THEN Mi WHEN 3 THEN`DO`WHEN 4 THEN Fr WHEN 5 THEN Sa WHEN 6 THEN So END ArtVgb" & vbCrLf & _
+       "FROM (SELECT " & datform(BegD + Reihe - 1 - SZZ) & " Dt)i," & tbm(tbwp) & " WHERE persnr = " & pn(.MouseCol - 1) & " AND ab<=Dt ORDER BY ab DESC LIMIT 1", adOpenStatic, dbv.wCn, adLockReadOnly
+       If Not rs0.BOF Then tt = rs0!ArtVgb
+      End If ' tt = "" Then
+      tt = tt & rs!ArtNrV & "->" & rs!artnr & "(" & rs!aenddat & "/" & rs!user & "), "
       rs.Move 1
      Loop
     End If
@@ -4297,7 +4310,7 @@ GoTo dp
 fehler:
  Dim AnwPfad$
 #If VBA6 Then
- AnwPfad = CurrentDb.name
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
 #End If

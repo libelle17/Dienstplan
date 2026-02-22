@@ -1,7 +1,8 @@
+Attribute VB_Name = "Module1"
 'Bauanleitung für eine Datenbank wie `//linux1/dp` vom 6.10.24 00:56:59
 Option Explicit
 Dim cnzCStr$ ' da unter Vista der Connectionstring jetzt nicht mehr aussagekräftig ist
-Dim cnz As New ADODB.connection, FNr&, lErrNr& ' letzter Fehler bei doEx
+Dim cnz As New ADODB.Connection, FNr&, lErrNr& ' letzter Fehler bei doEx
 Dim obProt% ' ob Protokollierung stattfindet, da Protokolldatei zu öffnen
 Dim Str(1, 8, 29) As New CString, ArtZ&(3, 8)
 Dim hDBn$ ' hiesiger Datenbankname
@@ -288,110 +289,110 @@ Function doEx&(sql$, obtolerant%) ' SQL-Befehl ausführen, Fehler anzeigen
  Dim lErrNr&, fDesc$
  On Error Resume Next
  cnz.DefaultDatabase = hDBn
- IF obtolerant THEN ON Error Resume Next ELSE ON Error GoTo fehler
- myEFrag sql, rAf, cnz, True, lErrNr, fDesc
+ If obtolerant Then On Error Resume Next Else On Error GoTo fehler
+ myEFrag sql, rAF, cnz, True, lErrNr, fDesc
 ' lErrNr = Err.Number
  FMeld = IIf(lErrNr = 0, "Kein Fehler", "Err.Nr " & lErrNr & ", " & fDesc) & ", rAf: " & rAF & " bei " & sql
- ON Error GoTo fehler
+ On Error GoTo fehler
  Debug.Print "doEx, FMeld: " & FMeld
  Debug.Print fDesc
- IF obProt THEN Print #302, FMeld
+ If obProt Then Print #302, FMeld
  DoEvents
  Exit Function
 fehler:
  Dim AnwPfad$
-#If VBA6 THEN
- AnwPfad = currentDB.Name
+#If VBA6 Then
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
-#END IF
-SELECT CASE Err.Number
- Case -2147467259 
-  IF InStrB(Err.Description, "nicht erzeugen") THEN ' 'Kann Tabelle 'testDB1.faxe' nicht erzeugen (Fehler: 150)
+#End If
+Select Case Err.Number
+ Case -2147467259
+  If InStrB(Err.Description, "nicht erzeugen") Then ' 'Kann Tabelle 'testDB1.faxe' nicht erzeugen (Fehler: 150)
    doEx = 150
    Exit Function
-  ElseIf InStrB(Err.Description, "is not BASE TABLE") <> 0 THEN
+  ElseIf InStrB(Err.Description, "is not BASE TABLE") <> 0 Then
    doEx = 151
    Exit Function
-  ElseIf InStrB(Err.Description, "MySQL server has gone away") THEN
+  ElseIf InStrB(Err.Description, "MySQL server has gone away") Then
    cnz.Close
    cnz.Open
    Call doEx("USE `" & hDBn & "`", 0)
    Resume
-  END IF
-End SELECT
-SELECT CASE MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & vbCrLf & "LastDLLError: " & CStr(Err.LastDllError) & vbCrLf & "Source: " & IIf(ISNULL(Err.source), "", CStr(Err.source)) & vbCrLf & "Description: " & Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in doEx/" & AnwPfad)
- Case vbAbort: Call MsgBox(" Höre auf "): Progende
+  End If
+End Select
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & vbCrLf & "LastDLLError: " & CStr(Err.LastDllError) & vbCrLf & "Source: " & IIf(IsNull(Err.source), "", CStr(Err.source)) & vbCrLf & "Description: " & Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in doEx/" & AnwPfad)
+ Case vbAbort: Call MsgBox(" Höre auf "): ProgEnde
  Case vbRetry: Call MsgBox(" Versuche nochmal "): Resume
  Case vbIgnore: Call MsgBox(" Setze fort "): Resume Next
-End SELECT
-End FUNCTION ' doEx
+End Select
+End Function ' doEx
 
 Function SplitN&(ByRef q$, Sep$, erg$()) ' da Split() Speicher fraß
  Dim p1&, p2&, Slen&, obExit%, runde&
- ON Error GoTo fehler
- IF NOT ISNULL(q) THEN
+ On Error GoTo fehler
+ If Not IsNull(q) Then
   Slen = Len(Sep)
   For runde = 1 To 2
    p2 = 0
    Do
     p1 = p2
     p2 = InStr(p1 + Slen, q, Sep)
-    IF p2 = 0 THEN p2 = Len(q) + 1: obExit = True
-    IF p2 <> 0 THEN
-     IF runde = 2 THEN
+    If p2 = 0 Then p2 = Len(q) + 1: obExit = True
+    If p2 <> 0 Then
+     If runde = 2 Then
       erg(SplitN) = Mid$(q, p1 + Slen, p2 - p1 - Slen)
-     END IF
+     End If
      SplitN = SplitN + 1
-    END IF
-    IF obExit THEN Exit Do
+    End If
+    If obExit Then Exit Do
    Loop
-   IF runde = 1 THEN
+   If runde = 1 Then
     ReDim erg(SplitN - 1)
     SplitN = 0
     obExit = 0
-   END IF
+   End If
   Next runde
- END IF
+ End If
  Exit Function
 fehler:
  Dim AnwPfad$
-#If VBA6 THEN
- AnwPfad = currentDB.Name
+#If VBA6 Then
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
-#END IF
-SELECT CASE MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(ISNULL(Err.source), vns, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in SplitN/" + AnwPfad)
- Case vbAbort: Call MsgBox("Höre auf"): Progende
+#End If
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in SplitN/" + AnwPfad)
+ Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
-End SELECT
-End FUNCTION ' aufSplit
+End Select
+End Function ' aufSplit
 
 ' in calldoGenMachDB_Click
-Public FUNCTION doMach_dp(DBn$, DBCn AS ADODB.Connection, Optional Server$, Optional obStumm%=True) ' Datenbankname
+Public Function doMach_dp(DBn$, DBCn As ADODB.Connection, Optional Server$, Optional obStumm% = True) ' Datenbankname
  Dim rsc As New ADODB.Recordset, sct$, Spli$(), tStr$, TMt As New CString, TabEig$
  Dim i&, p1&, p2&, p3&, CLen&, CLen1&, obLT%, ep$, pwp&, pwd$, mpwd$
  Dim Index$()
- ON Error Resume Next
+ On Error Resume Next
  hDBn = DBn
- Open App.Path & "\MachDB.bas_prot.txt" For Output AS #302
+ Open App.Path & "\MachDB.bas_prot.txt" For Output As #302
  obProt = (Err.Number = 0)
- ON Error GoTo fehler
+ On Error GoTo fehler
  ep = DBCn.Properties("Extended Properties")
  pwp = InStr(UCase$(ep), "PWD=") + 4
  If pwp <> 0 Then pwd = Mid$(ep, pwp, InStr(pwp, ep, ";") - pwp)
  mpwd = MachDatenbank.setzmpwd()
- If mpwd = "" Then exit function
- IF LenB(server) = 0 THEN Server = GetServr(DbCn)
+ If mpwd = "" Then Exit Function
+ If LenB(Server) = 0 Then Server = GetServr(DBCn)
  cnzCStr = "PROVIDER=MSDASQL;driver={MySQL ODBC 8.0 Unicode Driver};server=" & Server & ";uid=mysql;pwd=" & mpwd & ";"
- SET cnz = Nothing
- cnz.open cnzCStr & mpwd & ";"
- call doex("CREATE DATABASE IF NOT EXISTS `" & DBN & "` CHARACTER SET utf8mb4 COLLATE utf8mb4_german2_ci;",0)
- call doex("GRANT ALL ON `" & DBN & "`.* TO 'praxis'@'%' IDENTIFIED BY '" & pwd & "' WITH GRANT OPTION",0)
- call doex("GRANT ALL ON `" & DBN & "`.* TO 'praxis'@'localhost' IDENTIFIED BY '" & pwd & "' WITH GRANT OPTION",0)
- call doex("USE `" & DBN & "`",0)
- call doex("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ",0)
+ Set cnz = Nothing
+ cnz.Open cnzCStr & mpwd & ";"
+ Call doEx("CREATE DATABASE IF NOT EXISTS `" & DBn & "` CHARACTER SET utf8mb4 COLLATE utf8mb4_german2_ci;", 0)
+ Call doEx("GRANT ALL ON `" & DBn & "`.* TO 'praxis'@'%' IDENTIFIED BY '" & pwd & "' WITH GRANT OPTION", 0)
+ Call doEx("GRANT ALL ON `" & DBn & "`.* TO 'praxis'@'localhost' IDENTIFIED BY '" & pwd & "' WITH GRANT OPTION", 0)
+ Call doEx("USE `" & DBn & "`", 0)
+ Call doEx("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ", 0)
  FüllStr0
  FüllStr1
  FüllStr2
@@ -401,18 +402,18 @@ Public FUNCTION doMach_dp(DBn$, DBCn AS ADODB.Connection, Optional Server$, Opti
  FüllStr6
  FüllStr7
  FüllStr8
- call doex("SET FOREIGN_KEY_CHECKS = 0",0)
+ Call doEx("SET FOREIGN_KEY_CHECKS = 0", 0)
 
  Dim j&, ZZ&, Tbl$, sql As New CString
  For i = 0 To 8
-  IF InstrB(Str(1, i, 0), "CREATE TABLE") <> 0 THEN
+  If InStrB(Str(1, i, 0), "CREATE TABLE") <> 0 Then
    Tbl = Str(0, i, 0)
    ZZ = ArtZ(0, i) + ArtZ(1, i)
    sql = "CREATE TABLE IF NOT EXISTS `" & Tbl & "` (" & vbLf
    For j = 1 To ZZ
     If Str(1, i, j) <> "" Then
      sql.Append Str(1, i, j)
-     IF j < ZZ THEN sql.AppVar Array(",", vbLf)
+     If j < ZZ Then sql.AppVar Array(",", vbLf)
     End If ' If Str(1, i, j) <> "" Then
    Next j
    ZZ = ZZ + ArtZ(2, i) + 1
@@ -420,19 +421,19 @@ Public FUNCTION doMach_dp(DBn$, DBCn AS ADODB.Connection, Optional Server$, Opti
    sql.Append Str(1, i, ZZ)
    FNr = doEx(sql.Value, 0)
    Do
-    SET rsc = nothing
-    myFrag rsc, "SHOW CREATE TABLE `" & tbl & "`", adOpenStatic, cnz, adLockReadOnly
+    Set rsc = Nothing
+    myFrag rsc, "SHOW CREATE TABLE `" & Tbl & "`", adOpenStatic, cnz, adLockReadOnly
     sct = rsc.Fields(1)
-    IF InStrB(sct, "CREATE ALGORITHM") = 1 THEN
+    If InStrB(sct, "CREATE ALGORITHM") = 1 Then
      FNr = doEx("DROP VIEW `" & Tbl & "`", 0)
      FNr = doEx(sql.Value, 0)
     Else
      Exit Do
-    END IF
+    End If
    Loop
-   IF InStrB(AIoZ(sct), AIoZ(Str(1, i, ZZ))) = 0 THEN
-    Call doEx("ALTER TABLE `" & tbl & "`" & Str(1, i, ZZ), 0)
-   END IF
+   If InStrB(AIoZ(sct), AIoZ(Str(1, i, ZZ))) = 0 Then
+    Call doEx("ALTER TABLE `" & Tbl & "`" & Str(1, i, ZZ), 0)
+   End If
    TMt.Clear
    SplitN sct, vbLf, Spli
    For j = 1 To ArtZ(0, i) ' Tabellenfelder
@@ -443,116 +444,116 @@ Public FUNCTION doMach_dp(DBn$, DBCn AS ADODB.Connection, Optional Server$, Opti
     ' SET rsc = Nothing
     myFrag rsc, "SHOW columns FROM `" & Tbl & "` WHERE field = '" & Mid$(Str(0, i, j), 2, Len(Str(0, i, j)) - 2) & "'", adOpenStatic, cnz, adLockReadOnly
     enthalten = Not rsc.BOF
-    IF enthalten THEN
+    If enthalten Then
      genau = (InStrB(sct, Str(1, i, j)) <> 0)
-     IF Not genau THEN
+     If Not genau Then
       CLen = -1 ' Column-Length nicht kürzen
       obLT = (InStrB(sct, Str(0, i, j) & " longtext") <> 0)
-      IF Not obLT THEN
+      If Not obLT Then
        p1 = InStr(sct, "(")
        p2 = InStr(p1, sct, Str(0, i, j)) 'zCat.Tables(Tbl).Columns(k).Name & "`")
-       IF p2 = 0 THEN p2 = InStr(p1, LCase$(sct), LCase$(Str(0, i, j)))
+       If p2 = 0 Then p2 = InStr(p1, LCase$(sct), LCase$(Str(0, i, j)))
        p1 = InStr(p2, sct, "(")
        p3 = InStr(p2, sct, ",")
-       IF p3 = 0 THEN p3 = InStr(p2, sct, vbLf & ")")
-       IF p1 <> 0 AND p1 < p3 THEN
+       If p3 = 0 Then p3 = InStr(p2, sct, vbLf & ")")
+       If p1 <> 0 And p1 < p3 Then
         p2 = InStr(p1, sct, ")")
         CLen = Mid$(sct, p1 + 1, p2 - p1 - 1)
-       END IF
-      END IF
-     END IF
-    END IF
-    IF Not enthalten OR Not genau THEN
-     IF j = 1 THEN
-      posi = " FIRST,"
+       End If
+      End If
+     End If
+    End If
+    If Not enthalten Or Not genau Then
+     If j = 1 Then
+      Posi = " FIRST,"
      Else
-      posi = " AFTER " & Str(0, i, j - 1) & ","
-     END IF
-     IF Not enthalten THEN
-      TMt.AppVar (Array(" add ", Str(1, i, j), posi))
-     ElseIf Not genau THEN
-      IF CLen <> -1 OR obLT THEN
+      Posi = " AFTER " & Str(0, i, j - 1) & ","
+     End If
+     If Not enthalten Then
+      TMt.AppVar (Array(" add ", Str(1, i, j), Posi))
+     ElseIf Not genau Then
+      If CLen <> -1 Or obLT Then
        p1 = InStr(Str(1, i, j), "(")
-       IF p1 <> 0 THEN
+       If p1 <> 0 Then
         p2 = InStr(p1, Str(1, i, j), ")")
-        IF p2 <> 0 THEN
+        If p2 <> 0 Then
          CLen1 = Mid$(Str(1, i, j), p1 + 1, p2 - p1 - 1)
-         IF obLT THEN
-          Str(1, i, j).Replace "varchar(" & CLen1 & ")", "longtext"
-         ElseIf CLen1 < CLen THEN
-          Str(1, i, j).Replace "(" & CLen1 & ")", "(" & CLen & ")"
-         END IF ' obLT THEN ELSE
+         If obLT Then
+          Str(1, i, j).REPLACE "varchar(" & CLen1 & ")", "longtext"
+         ElseIf CLen1 < CLen Then
+          Str(1, i, j).REPLACE "(" & CLen1 & ")", "(" & CLen & ")"
+         End If ' obLT THEN ELSE
          genau = (InStrB(sct, Str(1, i, j)) <> 0)
-        END IF ' p2 <> 0 THEN"
-       END IF ' p1 <> 0 THEN"
-      END IF ' CLen <> -1 OR obLT THEN"
-      IF Not genau THEN
-       TMt.AppVar (Array(" MODIFY ", Str(1, i, j), posi))
-      END IF ' Not genau THEN
-     END IF ' Not enthalten THEN"
-    END IF ' Not enthalten OR Not genau THEN"
+        End If ' p2 <> 0 THEN"
+       End If ' p1 <> 0 THEN"
+      End If ' CLen <> -1 OR obLT THEN"
+      If Not genau Then
+       TMt.AppVar (Array(" MODIFY ", Str(1, i, j), Posi))
+      End If ' Not genau THEN
+     End If ' Not enthalten THEN"
+    End If ' Not enthalten OR Not genau THEN"
    Next j
    For j = ArtZ(0, i) + 1 To ArtZ(0, i) + ArtZ(1, i) ' Indices
-    IF InStrB(sct, Str(1, i, j)) = 0 THEN
-     IF InStrB(Str(1, i, j).Value, "PRIMARY") <> 0 THEN
-      IF InStrB(sct, "PRIMARY KEY (") <> 0 THEN
+    If InStrB(sct, Str(1, i, j)) = 0 Then
+     If InStrB(Str(1, i, j).Value, "PRIMARY") <> 0 Then
+      If InStrB(sct, "PRIMARY KEY (") <> 0 Then
        TMt.Append (" DROP PRIMARY KEY,")
-      END IF
+      End If
      Else
-      IF InStrB(sct, "KEY " & Str(0, i, j).Value) <> 0 THEN
+      If InStrB(sct, "KEY " & Str(0, i, j).Value) <> 0 Then
        TMt.AppVar Array(" DROP KEY ", Str(0, i, j), ",")
-      END IF
-     END IF
+      End If
+     End If
      TMt.AppVar Array(" add ", Str(1, i, j), ",")
-    END IF
+    End If
    Next j
-   IF TMt.Length <> 0 THEN
-    TMt.Cut (TMt.Length - 1)
-    Call doEx("ALTER TABLE `" & tbl & "` " & TMt.Value, -1)
-   END IF
-  END IF ' InStrB(Str(1, i, 0), "CREATE TABLE") <> 0 THEN
+   If TMt.length <> 0 Then
+    TMt.Cut (TMt.length - 1)
+    Call doEx("ALTER TABLE `" & Tbl & "` " & TMt.Value, -1)
+   End If
+  End If ' InStrB(Str(1, i, 0), "CREATE TABLE") <> 0 THEN
  Next i
  For i = 0 To 8
-  IF InstrB(Str(1, i, 0), "CREATE TABLE")<>0 THEN
+  If InStrB(Str(1, i, 0), "CREATE TABLE") <> 0 Then
    Tbl = Str(0, i, 0)
    ZZ = ArtZ(0, i) + ArtZ(1, i)
    ' SET rsc = nothing
-   myFrag rsc, "SHOW CREATE TABLE `" & tbl & "`", adOpenStatic, cnz, adLockReadOnly
+   myFrag rsc, "SHOW CREATE TABLE `" & Tbl & "`", adOpenStatic, cnz, adLockReadOnly
    sct = rsc.Fields(1)
    ZZ = ZZ + ArtZ(2, i) + 1
    For j = ArtZ(0, i) + ArtZ(1, i) + 1 To ZZ - 1 'Constraints
-    IF InStrB(sct, Str(1, i, j)) = 0 THEN
-     IF InStrB(sct, "CONSTRAINT " & Str(0, i, j)) <> 0 THEN
+    If InStrB(sct, Str(1, i, j)) = 0 Then
+     If InStrB(sct, "CONSTRAINT " & Str(0, i, j)) <> 0 Then
       Call doEx("ALTER TABLE `" & Tbl & "` DROP FOREIGN KEY " & Str(0, i, j), 0)
-     END IF
+     End If
      Call doEx("ALTER TABLE `" & Tbl & "` ADD" & Str(1, i, j), 0)
-    END IF
+    End If
    Next j
-  END IF ' InStrB(Str(1, i, 0), "CREATE TABLE") <> 0 THEN
+  End If ' InStrB(Str(1, i, 0), "CREATE TABLE") <> 0 THEN
  Next i
  Dim runde%
- For runde = 0 to 4
+ For runde = 0 To 4
   For i = 0 To 8
-   IF InStrB(Str(1, i, 0), "DEFINER VIEW") <> 0 THEN
+   If InStrB(Str(1, i, 0), "DEFINER VIEW") <> 0 Then
     Dim obCr%
     obCr = 0
     ' SET rsc = Nothing
     myFrag rsc, "SHOW TABLES FROM `" & DBn & "` WHERE `tables_in_" & DBn & "` = """ & Str(0, i, 0) & """", adOpenStatic, cnz, adLockReadOnly
-    IF rsc.BOF THEN
+    If rsc.BOF Then
      obCr = True
     Else
-     SET rsc = Nothing
+     Set rsc = Nothing
      myFrag rsc, "SHOW CREATE TABLE `" & Str(0, i, 0) & "`", adOpenStatic, cnz, adLockReadOnly
-     IF rsc.Fields(1) <> Str(1, i, 0) THEN
+     If rsc.Fields(1) <> Str(1, i, 0) Then
       Call doEx("DROP TABLE IF EXISTS `" & Str(0, i, 0) & "`", 0)
       Call doEx("DROP VIEW IF EXISTS `" & Str(0, i, 0) & "`", 0)
       obCr = True
-     END IF
-    END IF
-    IF obCr THEN
+     End If
+    End If
+    If obCr Then
      Call doEx(Str(1, i, 0).Value, True)
-    END IF
-   END IF
+    End If
+   End If
    Dim fsql$
    fsql = _
    "CREATE DEFINER=`praxis`@`%` FUNCTION `obft`(dt DATE) RETURNS float" & _
@@ -574,46 +575,46 @@ Public FUNCTION doMach_dp(DBn$, DBCn AS ADODB.Connection, Optional Server$, Opti
    Call doEx(fsql, True)
   Next i
  Next runde
- call doex("SET FOREIGN_KEY_CHECKS = 1",0)
- IF obProt THEN Close #302
- IF not obstumm THEN
-  MsgBox "Fertig mit doMach_dp(" & DBn & ", DBCn," & Server & ")!
- END IF
+ Call doEx("SET FOREIGN_KEY_CHECKS = 1", 0)
+ If obProt Then Close #302
+ If Not obStumm Then
+  MsgBox "Fertig mit doMach_dp(" & DBn & ", DBCn," & Server & ")!"
+ End If
  Exit Function
 fehler:
  Dim AnwPfad$
-#If VBA6 THEN
- AnwPfad = currentDB.Name
+#If VBA6 Then
+ AnwPfad = currentDB.name
 #Else
  AnwPfad = App.Path
-#END IF
-SELECT CASE MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & vbCrLf & "LastDLLError: " & CStr(Err.LastDllError) & vbCrLf & "Source: " & IIf(ISNULL(Err.source), "", CStr(Err.source)) & vbCrLf & "Description: " & Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in doMach_dp/" & AnwPfad)
- Case vbAbort: Call MsgBox(" Höre auf "): Progende
+#End If
+Select Case MsgBox("FNr: " & FNr & ", ErrNr: " & CStr(Err.Number) & vbCrLf & "LastDLLError: " & CStr(Err.LastDllError) & vbCrLf & "Source: " & IIf(IsNull(Err.source), "", CStr(Err.source)) & vbCrLf & "Description: " & Err.Description, vbAbortRetryIgnore, "Aufgefangener Fehler in doMach_dp/" & AnwPfad)
+ Case vbAbort: Call MsgBox(" Höre auf "): ProgEnde
  Case vbRetry: Call MsgBox(" Versuche nochmal "): Resume
  Case vbIgnore: Call MsgBox(" Setze fort "): Resume Next
-End SELECT
-End FUNCTION 'doMach_dp
+End Select
+End Function 'doMach_dp
 
-Function GetServr$(DBCn AS ADODB.Connection)
+Function GetServr$(DBCn As ADODB.Connection)
  Dim spos&, sp2&, DBCs$
  DBCs = DBCn.Properties("Extended Properties")
- spos = InStr(1,DBCs, "server=",vbTextCompare)
- IF spos <> 0 THEN
+ spos = InStr(1, DBCs, "server=", vbTextCompare)
+ If spos <> 0 Then
   sp2 = InStr(spos, DBCs, ";")
-  IF sp2 = 0 THEN sp2 = Len(DBCs)
+  If sp2 = 0 Then sp2 = Len(DBCs)
   GetServr = Mid$(DBCs, spos + 7, sp2 - spos - 7)
- END IF ' spos <> 0 THEN
-End FUNCTION ' GetServr
+ End If ' spos <> 0 THEN
+End Function ' GetServr
 
-Function AIoZ(Ursp) AS CString ' Ursp kann $ oder CString sein
+Function AIoZ(Ursp) As CString ' Ursp kann $ oder CString sein
  Const Such$ = "AUTO_INCREMENT="
- SET AIoZ = New CString
+ Set AIoZ = New CString
  AIoZ = Ursp
  Dim p0&, p1&
  p0 = AIoZ.Instr(Such)
- IF p0 <> 0 THEN
+ If p0 <> 0 Then
   p1 = AIoZ.Instr(" ", p0)
   AIoZ.Cut (p0 - 2)
   AIoZ.Append Mid$(Ursp, p1)
- END IF
-End FUNCTION ' AIoZ(Ursp$) AS CString
+ End If
+End Function ' AIoZ(Ursp$) AS CString
