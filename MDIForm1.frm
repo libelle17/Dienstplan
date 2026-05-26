@@ -264,6 +264,8 @@ Dim altFarbe&(Az0 To azgende - 1)
 Dim rAF&
 Dim NoLostFocus%
 Dim BegD As Date, EndD As Date, pn&(), kue$() ' Beginn, Ende, Personalnummern für die Reihenfolge in der Dienstplanseite
+Dim maname_dp$()
+Dim mausbende_dp() As Date
 Dim cRow&(Az0 To azgende - 1), cCol&(Az0 To azgende - 1) ' für Tb1 und Cb1 und spätere Änderungen
 Dim noenter%
 Dim MFG_click_abbrech%
@@ -284,6 +286,8 @@ Public user$, Usergeprüft As Date
 Public Clip$
 Dim wiederholt%
 Dim obMSH2%
+' Modul-Ebene:
+Dim bilUBilh!(), bilUBil!(), bilUBe!(), bilFBil!(), bilPSt!(), bilNeu%()
 Const obMySQL% = True
 
 ' benötigte API-Deklarationen
@@ -2062,6 +2066,7 @@ Function TypCast(divTyp As DataTypeEnum) As DataTypeEnum
 End Function ' TypCast(divTyp As DataTypeEnum) As DataTypeEnum
 
 Sub MFGRefresh(neuMFGTyp As azgtyp, Optional aktMSH As MSHFlexGrid, Optional nichtAusSpucken%)
+Dim tA#, tB#, tC#, tD#
  Dim i%, obFarbe%
  On Error GoTo fehler
  If obdebug Then Debug.Print "MFGRefresh(", azm(neuMFGTyp), neuMFGTyp
@@ -2151,7 +2156,7 @@ snochmal:
    Case azgwp, azgdp, azgpr, azgul
     Set rsf = Nothing
 '    rsf.Open "SELECT artnr, farbe FROM `" & tbm(tbar) & "` WHERE zusatz = 0", dbv.wCn, adOpenDynamic, adLockReadOnly '  desc
-    myFrag rsf, "SELECT artnr, farbe FROM `" & tbm(tbar) & "` WHERE zusatz = 0", adOpenDynamic, rsfcn, adLockReadOnly
+    myFrag rsf, "SELECT artnr, farbe FROM `" & tbm(tbar) & "` WHERE zusatz = 0", adOpenStatic, rsfcn, adLockReadOnly
   End Select
   Select Case neuMFGTyp
    Case azgar, azgma, azgwp, azgpr, azgul, azgab
@@ -2213,6 +2218,7 @@ snochmal:
     ReDim pn(0)
     ReDim kue(0)
     Dim rsh As ADODB.Recordset, rs0 As ADODB.Recordset, rs1 As ADODB.Recordset, rs2 As ADODB.Recordset
+' tC = Timer
     Do
      BegD = CDate("1.1." & Me.Jahr)
      EndD = CDate(Day(BegD) & "." & Month(BegD) & "." & Year(BegD) + 1)
@@ -2221,12 +2227,12 @@ snochmal:
      .Cols = 1
      Set rsh = Nothing
 '    rsh.Open "SELECT * FROM `" & tbm(tbma) & "` WHERE (isnull(aus) OR (not isnull(aus) AND aus >= " & datform(BegD) & ")) AND (isnull(ein) OR (not isnull(ein) AND ein <= " & datform(EndD) & ")) ORDER BY `persnr`", Cn, adOpenDynamic, adLockReadOnly
-     sql0 = "SELECT `" & tbm(tbwp) & "`.*,`" & tbm(tbma) & "`.Kuerzel,`" & tbm(tbma) & "`.Nachname,`" & tbm(tbma) & "`.Vorname,`" & tbm(tbma) & "`.Aus " & _
-            "FROM `" & tbm(tbwp) & "` LEFT JOIN `" & tbm(tbma) & "` ON `" & tbm(tbwp) & "`.PersNr = `" & tbm(tbma) & "`.PersNr " & _
-            "WHERE (`" & tbm(tbma) & "`.Aus > " & datform(BegD) & " OR isnull(`" & tbm(tbma) & "`.Aus) OR (`" & tbm(tbma) & "`.Aus = " & datform(CDate(0)) & " OR `" & tbm(tbma) & "`.Aus = " & "'0000-00-00'" & ")) AND ab <= " & datform(EndD) & " " & _
-            "AND NOT EXISTS (SELECT * FROM `" & tbm(tbwp) & "` azn WHERE persnr = `" & tbm(tbwp) & "`.persnr AND ab > `" & tbm(tbwp) & "`.ab AND ab <= " & datform(BegD) & ") " & _
+     sql0 = "SELECT `" & tbm(tbwp) & "`.*,`" & tbm(tbma) & "`.Kuerzel,COALESCE(`" & tbm(tbma) & "`.Nachname,'')Nachname,`" & tbm(tbma) & "`.Vorname,`" & tbm(tbma) & "`.Aus,`" & tbm(tbma) & "`.AusbEnde " & vbCrLf & _
+            "FROM `" & tbm(tbwp) & "` LEFT JOIN `" & tbm(tbma) & "` ON `" & tbm(tbwp) & "`.PersNr = `" & tbm(tbma) & "`.PersNr " & vbCrLf & _
+            "WHERE (`" & tbm(tbma) & "`.Aus > " & datform(BegD) & " OR isnull(`" & tbm(tbma) & "`.Aus) OR (`" & tbm(tbma) & "`.Aus = " & datform(CDate(0)) & " OR `" & tbm(tbma) & "`.Aus = " & "'0000-00-00'" & ")) AND ab <= " & datform(EndD) & " " & vbCrLf & _
+            "AND NOT EXISTS (SELECT * FROM `" & tbm(tbwp) & "` azn WHERE persnr = `" & tbm(tbwp) & "`.persnr AND ab > `" & tbm(tbwp) & "`.ab AND ab <= " & datform(BegD) & ") " & vbCrLf & _
             "ORDER BY `" & tbm(tbwp) & "`.`persnr`,`ab`"
-     sql = "SELECT persnr,kuerzel,nachname,vorname,min(ab) ab,aus FROM (" & sql0 & ") i GROUP BY kuerzel ORDER BY persnr"
+     sql = "SELECT persnr,kuerzel,nachname,vorname,min(ab)ab,aus,COALESCE(MAX(AusbEnde),0)ausbende FROM(" & sql0 & ") i GROUP BY kuerzel ORDER BY persnr"
 '     rsh.Open sql, dbv.wCn, adOpenDynamic, adLockOptimistic
      On Error GoTo EigFehler
      Set rsh = Nothing
@@ -2249,6 +2255,7 @@ snochmal:
      End If
     Loop
     Call FTbeleg(Me.Jahr)
+' Debug.Print "C wp-Schleife: " & Format(Timer - tC, "0.000") & "s"
     Do While Not rsh.EOF
      .Cols = .Cols + 1
      .Col = .Cols - 1
@@ -2266,16 +2273,74 @@ snochmal:
      aus(.Col - 1) = IIf(IsNull(rsh!aus), CDate("31.12.9999"), rsh!aus)
      .Row = 0
      .Text = IIf(IsNull(rsh!Nachname), """""", rsh!Nachname)
+ReDim Preserve maname_dp(.Col - 1)
+ReDim Preserve mausbende_dp(.Col - 1)
+maname_dp(.Col - 1) = rsh!Nachname
+mausbende_dp(.Col - 1) = CDate(rsh!AusbEnde)
      rsh.Move 1
     Loop ' While Not rsh.EOF
     Set rsh = Nothing
     .Rows = SZZ + 2
+' tB = Timer
+#Const bneu = True
+#If bneu Then
+Dim pnList$, kk%
+For kk = 0 To UBound(pn)
+    pnList = pnList & IIf(kk > 0, ",", "") & pn(kk)
+Next kk
+ReDim bilUBilh(UBound(pn)): ReDim bilUBil(UBound(pn))
+ReDim bilUBe(UBound(pn)):   ReDim bilFBil(UBound(pn))
+ReDim bilPSt(UBound(pn)):   ReDim bilNeu(UBound(pn))
+' Für B: bilanzen aktuelles Jahr, Vorjahr, Urlaubszählung
+Dim rsBilAkt As New ADODB.Recordset, rsBilVor As New ADODB.Recordset
+Dim rsUrlZ As New ADODB.Recordset
+myFrag rsBilAkt, "SELECT persnr,urlaub,Überstunden uest,urlstd,Fortbildung,planstunden FROM `" & tbm(tbbi) & _
+    "` WHERE persnr IN (" & pnList & ") AND jahr = " & Me.Jahr, adOpenStatic, dbv.wCn, adLockReadOnly
+myFrag rsBilVor, "SELECT persnr, urlaub, Überstunden uest FROM `" & tbm(tbbi) & _
+    "` WHERE persnr IN (" & pnList & ") AND jahr = " & Me.Jahr - 1, adOpenStatic, dbv.wCn, adLockReadOnly
+myFrag rsUrlZ, "SELECT persnr, COUNT(0) Zahl FROM `" & tbm(tbdp) & _
+    "` WHERE persnr IN (" & pnList & ") AND YEAR(tag) = " & Me.Jahr & _
+    " AND ArtNr IN ('u','uw') GROUP BY persnr", adOpenStatic, dbv.wCn, adLockReadOnly
+For i = 0 To .Cols - 2
+ If i <= UBound(pn) Then
+  .Col = i + 1
+  rsBilAkt.Find "persnr = " & pn(i), , adSearchForward, 1
+  bilNeu(i) = rsBilAkt.EOF
+If Not rsBilAkt.EOF Then
+    bilUBilh(i) = rsBilAkt!urlstd
+    bilUBil(i) = rsBilAkt!urlaub
+    bilUBe(i) = rsBilAkt!uest
+    bilFBil(i) = rsBilAkt!Fortbildung
+    bilPSt(i) = rsBilAkt!planstunden
+End If
+  rsBilVor.Find "persnr = " & pn(i), , adSearchForward, 1
+  rsUrlZ.Find "persnr = " & pn(i), , adSearchForward, 1
+  .Row = 1 ' Überstunden Vorjahr
+  If rsBilVor.EOF Then .Text = 0 Else .Text = rsBilVor!uest
+  .Text = Round(.Text, 1)
+  .Row = 2 ' Überstunden gesamt
+  .Text = 0
+  If Not rsBilAkt.EOF Then .Text = rsBilAkt!uest
+  .Text = Round(.Text, 1)
+  .Row = 3 ' Urlaub Vorjahr
+  If rsBilVor.EOF Then .Text = 0 Else .Text = -rsBilVor!urlaub
+  .Text = Round(.Text, 1)
+  .Row = 5 ' Urlaub gesamt
+  .Text = 0
+  If Not rsBilAkt.EOF Then .Text = rsBilAkt!urlaub
+  .Text = -Round(.Text, 1)
+  .Row = 4 ' Url'eintr. heuer
+  If Not rsUrlZ.EOF Then .Text = rsUrlZ!zahl Else .Text = 0
+ End If
+Next i
+#Else
     For i = 0 To .Cols - 2
      If i <= UBound(pn) Then
      .Col = i + 1
-     Dim UAB!, UAA!, FBA! ' Urlaubsanspruch bisher, Urlaubsanspruch aktuell, Fortbildung aktuell
+'     Dim UAB!, UAA!, FBA! ' Urlaubsanspruch bisher, Urlaubsanspruch aktuell, Fortbildung aktuell
 '     Call UrlAnsp(pn(i), CDate("1.1." & Me.Jahr), CDate("1.1." & Me.Jahr + 1), dbv.wCn, UAA!, UAB!)
-     Call UrlAnspr(pn(i), Me.Jahr, dbv.wCn, UAA!, UAB!)
+' auskommentiert 26.5.26
+'     Call UrlAnspr(pn(i), Me.Jahr, dbv.wCn, UAA!, UAB!)
      Set rs0 = Nothing
 '     rs0.Open "SELECT urlaub, Überstunden uest, fortbildung FROM `" & tbm(tbbi) & "` WHERE persnr = " & pn(i) & " AND jahr = " & Me.Jahr, dbv.wCn, adOpenStatic, adLockReadOnly
      myFrag rs0, "SELECT urlaub, Überstunden uest, fortbildung FROM `" & tbm(tbbi) & "` WHERE persnr = " & pn(i) & " AND jahr = " & Me.Jahr, adOpenStatic, dbv.wCn, adLockReadOnly
@@ -2325,6 +2390,8 @@ snochmal:
 '     .Text = Round(UAB, 1)
      End If ' i <= ubound(pn)
     Next i
+#End If
+' Debug.Print "B Kopfzeilen: " & Format(Timer - tB, "0.000") & "s"
     Set rs0 = Nothing
     Dim wp()
 '    Einschr(tbdp) = " LEFT JOIN `" & tbm(tbar) & "` ON `" & tbm(tbwp) & "`.artnr = `" & tbm(tbar) & "`.artnr"
@@ -2332,7 +2399,9 @@ snochmal:
     Set rs0 = New ADODB.Recordset
     Dim raff&
     On Error GoTo EigFehler
+' tA = Timer
     rs0.Open sql0, dbv.wCn, adOpenDynamic, adLockReadOnly '  desc
+' Debug.Print "A sql0: " & Format(Timer - tA, "0.000") & "s"
     On Error GoTo fehler
 '    myFrag rs0, sql0, adOpenStatic, dbv.wCn, adLockReadOnly
     ReDim wp(rs0.Fields.Count - 1, 1, 0)
@@ -2483,6 +2552,35 @@ snochmal:
      Next aktD
      AltPN = wp(0, 0, i)
     Next i
+' tD = Timer
+#Const dneu = True
+#If dneu Then
+' Für D: alle Dienstplaneinträge auf einmal
+Dim rsDpAll As New ADODB.Recordset
+myFrag rsDpAll, "SELECT d.persnr, d.tag, d.artnr, a.farbe FROM `" & tbm(tbdp) & _
+    "` d LEFT JOIN `" & tbm(tbar) & "` a ON d.artnr = a.artnr" & _
+    " WHERE d.persnr IN (" & pnList & ") AND d.tag >= " & datform(BegD) & _
+    " AND d.tag <= " & datform(EndD) & " ORDER BY d.persnr, d.tag", adOpenStatic, dbv.wCn, adLockReadOnly
+If Not (rsDpAll.BOF And rsDpAll.EOF) Then rsDpAll.MoveFirst
+For i = 0 To UBound(pn)
+ .Col = i + 1
+ Do
+  If rsDpAll.EOF Then Exit Do
+  If rsDpAll!Persnr <> pn(i) Then Exit Do
+  .Row = rsDpAll!Tag - BegD + SZZ + 1
+  If Not IsNull(rsDpAll!artnr) Then .Text = rsDpAll!artnr
+  If Not IsNull(rsDpAll!Farbe) Then
+   If mitVGF Then .CellForeColor = VGF2
+   If mitfett Then
+    .CellFontBold = True
+    If .Text = "-" Then .CellFontSize = .CellFontSize + .CellFontSize
+   End If
+   .CellBackColor = rsDpAll!Farbe
+  End If
+  rsDpAll.MoveNext
+ Loop
+Next i
+#Else
     For i = 0 To UBound(pn)
      .Col = i + 1
      Einschr(azgdp) = " LEFT JOIN `" & tbm(tbar) & "` ON `" & tbm(tbdp) & "`.artnr = `" & tbm(tbar) & "`.artnr"
@@ -2507,6 +2605,8 @@ snochmal:
      Loop ' while not rsh.eof
      Set rsh = Nothing
     Next ' i = 0 To UBound(pn)
+#End If ' dneu
+' Debug.Print "D Dienstplan-Einzel: " & Format(Timer - tD, "0.000") & "s"
   End Select ' Case neuMFGTyp
  End With ' aktMSH
  If obSp1Fest(azt(neuMFGTyp)) Then
@@ -2514,7 +2614,9 @@ snochmal:
  Else
   aktMSH.FixedCols = 0
  End If
+'  Dim tS#: tS = Timer
  Call SizeColumns(aktMSH)
+'  Debug.Print "SizeColumns: " & Format(Timer - tS, "0.000") & "s"
  If Me.MfGTyp <> neuMFGTyp Then
   fgespei(neuMFGTyp) = 0
   Me.MfGTyp = neuMFGTyp
@@ -2545,6 +2647,7 @@ fehler:
  End Select
 End Sub ' MFGRefresh
 
+#If übergenau Then
 ' Make the FlexGrid's columns big enough to hold all values.
 Private Sub SizeColumns(ByVal flx As MSHFlexGrid)
 Const ZusatzWeite% = 100
@@ -2572,6 +2675,31 @@ fehler:
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
  End Select
 End Sub ' SizeColumns
+#Else
+Private Sub SizeColumns(ByVal flx As MSHFlexGrid)
+Const ZusatzWeite% = 100
+Dim max_wid As Single, wid As Single
+Dim r As Integer, c As Integer, max_row As Integer
+On Error GoTo fehler
+max_row = flx.Rows - 1
+For c = 0 To flx.Cols - 1
+    max_wid = 0
+    For r = 0 To min(max_row, 6)  ' nur Kopfzeilen messen
+        wid = Me.ucMDIKeys.TextWidth(flx.TextMatrix(r, c))
+        If max_wid < wid Then max_wid = wid
+    Next r
+    flx.ColWidth(c) = max_wid + ZusatzWeite
+Next c
+ Exit Sub
+fehler:
+ Select Case MsgBox("FNr: " + CStr(Err.Number) + vbCrLf + "LastDLLError: " + CStr(Err.LastDllError) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description + vbCrLf + "Fehlerposition: " + CStr(FPos), vbAbortRetryIgnore, "Aufgefangener Fehler in SizeColumns/" + App.Path)
+  Case vbAbort: Call MsgBox("Höre auf"): ProgEnde
+  Case vbRetry: Call MsgBox("Versuche nochmal"): Resume
+  Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
+ End Select
+End Sub ' SizeColumns
+#End If
+
 
 ' Befüllung der Usertabelle: INSERT INTO dp.user(user,Passwort,hinzugefügt) VALUES(<user>,aes_encrypt(<passwort>,'0&F54'),NOW());
 ' oder: UPDATE dp.user set passwort = aes_encrypt(<pw>,'0&F54'), geändert=NOW() WHERE user='<user>';
@@ -3089,7 +3217,7 @@ Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn As ADODB.Connection, ByRef U
    End If
   End If
   On Error GoTo setfehler
-  Cn.Execute ("SET @relwaz=NULL")
+'  Cn.Execute ("SET @relwaz=NULL")
   On Error GoTo fehler
   Set rs0 = Nothing
  Next iru
@@ -3125,15 +3253,27 @@ Function EinzelBilanz(ByVal Persnr&, ByRef ArtVgb$, ByRef ArtDp$, ByVal ausbez!,
   ArtDp = ArtVgb
   ArtVgb = ""
  End If
- Dim ur As ADODB.Recordset
+
+Static sPersnr&, sTag As Date, sWAZ!, sArtVgb$, sCached%
+If Persnr = sPersnr And akttag = sTag And sCached Then
+'    Debug.Print "Cache HIT: " & Persnr & " / " & akttag
+    WAZ = sWAZ
+    If LenB(ArtVgb) = 0 Then ArtVgb = sArtVgb
+Else
+'    Debug.Print "Cache MISS: " & Persnr & " / " & akttag
 ' ur.Open "SELECT `" & Left(Format(akttag, "ddd"), 2) & "` ArtVgb,WAZ FROM `" & tbm(tbwp) & "` WHERE ab = (SELECT max(ab) FROM `" & tbm(tbwp) & "` WHERE ab <= " & datform(akttag) & " AND persnr = " & PersNr & ") AND persnr = " & PersNr, dbv.wCn, adOpenStatic, adLockReadOnly
+ Dim ur As ADODB.Recordset
  myFrag ur, "SELECT `" & Left(Format(akttag, "ddd"), 2) & "` ArtVgb,WAZ FROM `" & tbm(tbwp) & "` WHERE ab = (SELECT max(ab) FROM `" & tbm(tbwp) & "` WHERE ab <= " & datform(akttag) & " AND ab<>0 AND persnr = " & Persnr & ") AND persnr = " & Persnr, adOpenStatic, dbv.wCn, adLockReadOnly
- If ur.BOF Then
-  WAZ = 0
- Else
-  If nTg Then WAZ = 38.5 Else WAZ = CDbl(ur!WAZ)
-  If LenB(ArtVgb) = 0 Then ArtVgb = ur!ArtVgb
- End If
+    If ur.BOF Then
+        WAZ = 0
+    Else
+        If nTg Then WAZ = 38.5 Else WAZ = CDbl(ur!WAZ)
+        If LenB(ArtVgb) = 0 Then ArtVgb = ur!ArtVgb
+    End If
+    sPersnr = Persnr: sTag = akttag
+    sWAZ = WAZ: sArtVgb = ArtVgb: sCached = True
+  Set ur = Nothing
+End If
  
  Dim ii%
  For ii = 0 To UBound(ftag) ' Feiertage
@@ -3246,21 +3386,28 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
  Dim updrs As ADODB.Recordset
         Dim maname$
         Dim mars As ADODB.Recordset
+' Dim tm1#, tm2#, t3#, t4#
+' Dim tDC#: tDC = Timer
+' ... alle DB-Operationen ...
  On Error GoTo fehler
  If obdebug Then Debug.Print "doChange(", obLoe, Qu, Tb1, Cb1
  If obLoe Then If Not prüfeUser Then Exit Sub
  noenter = -1
  With Me.MFG
-  aCol = .Col
-  eCol = .ColSel
-  aRow = .Row
-  eRow = .RowSel
-  If obLoe Then
-   cRow(MfGTyp) = min(cRow(MfGTyp) - 1, 1)
-  Else ' obLoe Then
-   .Row = cRow(MfGTyp)
-   .Col = cCol(MfGTyp)
-  End If ' obLoe Then Else
+    If obLoe Then
+        aCol = .Col
+        eCol = .ColSel
+        aRow = .Row
+        eRow = .RowSel
+        cRow(MfGTyp) = min(cRow(MfGTyp) - 1, 1)
+    Else
+        .Row = cRow(MfGTyp)
+        .Col = cCol(MfGTyp)
+        aCol = .Col       ' jetzt = cCol(MfGTyp) — korrekte Spalte
+        eCol = .ColSel
+        aRow = .Row       ' jetzt = cRow(MfGTyp) — korrekte Zeile
+        eRow = .RowSel
+    End If
 '  Set rstu = Nothing
   If DoNotChange Then Exit Sub
   Select Case MfGTyp
@@ -3284,12 +3431,17 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
 '        Set mars = Nothing
 '        mars.Open "SELECT nachname FROM `" & tbm(tbma) & "` WHERE persnr = " & pn(jCol - 1), dbv.wCn, adOpenStatic, adLockReadOnly
       If jCol - 1 >= LBound(pn) And jCol - 1 <= UBound(pn) Then
-       myFrag mars, "SELECT COALESCE(nachname,'')nn,COALESCE(AusbEnde,0)ae FROM `" & tbm(tbma) & "` WHERE persnr = " & pn(jCol - 1), adOpenStatic, dbv.wCn, adLockReadOnly
-       If Not mars.BOF Then
-        maname = mars!nn
-        AusbEnde = mars!ae
-       End If ' Not mars.BOF Then
+' tm1 = Timer
+'       myFrag mars, "SELECT COALESCE(nachname,'')nn,COALESCE(AusbEnde,0)ae FROM `" & tbm(tbma) & "` WHERE persnr = " & pn(jCol - 1), adOpenStatic, dbv.wCn, adLockReadOnly
+'       If Not mars.BOF Then
+'        maname = mars!nn
+'        AusbEnde = mars!ae
+'       End If ' Not mars.BOF Then
+       maname = maname_dp(jCol - 1)
+       AusbEnde = mausbende_dp(jCol - 1)
+' Debug.Print "1 mars: " & Format(Timer - tm1, "0.000") & "s"
       End If ' jCol - 1 >= LBound(pn) And jCol - 1 <= UBound(pn) Then
+' tm2 = Timer
       If obLoe Then
        sql = "SELECT `artnr` FROM `" & tbm(tbdp) & "` WHERE `tag` = " & datform(akttag) & " AND `PersNr` = " & pn(jCol - 1)
 '       rs.Open sql, dbv.wCn, adOpenStatic, adLockOptimistic
@@ -3355,28 +3507,36 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
   '     Call MFGRefresh(Me.MfgTyp)
        End If ' nText <> .Text Then
       End If ' obLoe Else
+' Debug.Print "2 dp SELECT+UPDATE: " & Format(Timer - tm2, "0.000") & "s"
       If obProt Then
        sql = "INSERT INTO `" & tbm(tbpr) & "` (`tag`,`PersNr`,`ArtNrV`,`ArtNr`,`AendDat`,`AendPC`,`AendUser`, `user`) values (" & datform(akttag) & "," & pn(jCol - 1) & ",'" & ArtVgb & "','" & nText & "'," & datform(Now) & ",'" & CptName & "','" & UserName & "','" & user & "')"
 '       Call dbv.wCn.Execute(sql, rAF)
        Set updrs = Nothing
+' t3 = Timer
        myFrag updrs, sql, , dbv.wCn
        On Error GoTo fehler
        Dim UBilh!, UBil!, ÜBil!, FBil!, obBilanzNeu%, PSt! ' Urlaubsbilanz, Überstundenbilanz, Fortbildungsbilanz, , Planstunden
 '       rs.Open "SELECT urlstd, urlaub, Überstunden uest, Fortbildung FROM `" & tbm(tbbi) & "` WHERE persnr = " & pn(jCol - 1) & " AND jahr = " & Me.Jahr, dbv.wCn, adOpenStatic, adLockReadOnly
        Set rs = Nothing
-       myFrag rs, "SELECT urlstd, urlaub, Überstunden uest, Fortbildung FROM `" & tbm(tbbi) & "` WHERE persnr = " & pn(jCol - 1) & " AND jahr = " & Me.Jahr, adOpenStatic, dbv.wCn, adLockReadOnly
-       If rs.EOF Then
-        obBilanzNeu = True
-       Else ' rs.EOF Then
-        UBilh = rs!urlstd
-        UBil = rs!urlaub
-        ÜBil = rs!uest
-        FBil = rs!Fortbildung
-       End If ' rs.EOF Then Else
-       Set rs = Nothing
+UBilh = bilUBilh(jCol - 1): UBil = bilUBil(jCol - 1)
+ÜBil = bilUBe(jCol - 1): FBil = bilFBil(jCol - 1)
+PSt = bilPSt(jCol - 1):  obBilanzNeu = bilNeu(jCol - 1)
+'       myFrag rs, "SELECT urlstd, urlaub, Überstunden uest, Fortbildung FROM `" & tbm(tbbi) & "` WHERE persnr = " & pn(jCol - 1) & " AND jahr = " & Me.Jahr, adOpenStatic, dbv.wCn, adLockReadOnly
+'       If rs.EOF Then
+'        obBilanzNeu = True
+'       Else ' rs.EOF Then
+'        UBilh = rs!urlstd
+'        UBil = rs!urlaub
+'        ÜBil = rs!uest
+'        FBil = rs!Fortbildung
+'       End If ' rs.EOF Then Else
+'       Set rs = Nothing
+' Debug.Print "3 protok+bilanzen: " & Format(Timer - t3, "0.000") & "s"
+       
 '       Dim rsf! ' rsf = richtige Stunden im Feld; Inhalt des richtigen Feldes im Wochenplan, in Stunden
 '       rsf = 0
 '       If Not rs.BOF Then If IsNumeric(rs.Fields(0)) Then rsf = rs.Fields(0)
+' t4 = Timer
        If LenB(ArtVgb) <> 0 And LenB(nText) <> 0 Then ' wenn schon was drin stand, dann das zuerst löschen
         Call EinzelBilanz(pn(jCol - 1), ArtVgb, "", 0, 0, UBilh, UBil, ÜBil, FBil, PSt, akttag, WAZv, mitdruck:=False, ohneumr:=True, obLoe:=True, AusbEnde:=AusbEnde)
         ArtVgb = ""
@@ -3390,11 +3550,16 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
 '        Call dbv.wCn.Execute("UPDATE `" & tbm(tbbi) & "` SET urlstd = '" & Str$(UBilh) & "',urlaub = '" & Str$(UBil) & "',überstunden = '" & Str(ÜBil) & "',fortbildung = '" & Str(FBil) & "',planstunden = '" & Str$(PSt) & "' WHERE persnr = " & pn(jCol - 1) & " AND jahr = " & Me.Jahr)
         myFrag updrs, "UPDATE `" & tbm(tbbi) & "` SET urlstd = '" & Str$(UBilh) & "',urlaub = '" & Str$(UBil) & "',überstunden = '" & Str(ÜBil) & "',fortbildung = '" & Str(FBil) & "',planstunden = '" & Str$(PSt) & "' WHERE persnr = " & pn(jCol - 1) & " AND jahr = " & Me.Jahr, , dbv.wCn
        End If ' obBilanzNeu else
+bilUBilh(jCol - 1) = UBilh: bilUBil(jCol - 1) = UBil
+bilUBe(jCol - 1) = ÜBil: bilFBil(jCol - 1) = FBil
+bilPSt(jCol - 1) = PSt:  bilNeu(jCol - 1) = False
+' Debug.Print "4 EinzelBilanz+UPDATE: " & Format(Timer - t4, "0.000") & "s"
       End If ' obProt Then
      Next jRow
     Next jCol
 '    dbv.wCn.Execute ("COMMIT")
     MFG.Redraw = True
+'     Debug.Print "doChange vor MFGRefresh: " & Format(Timer - tDC, "0.000") & "s"
     If Not norefresh Then Call MFGRefresh(azgdp)
    Case Else ' nicht dienstplan
      Call merken(MfGTyp)
@@ -3432,22 +3597,22 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
        p1 = InStr(Err.Description, "constraint fails")
        If p1 > 0 Then
         Dim p2%, p3%, p4%, p5%, Erkl0$, Erkl1$
-        Dim T1$, T2$, K1$
+        Dim t1$, t2$, K1$
         p2 = InStr(p1, ErrDesc, "`")
         p3 = InStr(p2 + 1, ErrDesc, "`,")
-        T1 = Mid(ErrDesc, p2 - 1, p3 - p2)
-        T1 = Mid(ErrDesc, p2, p3 - p2 + 1)
-        T1 = Mid(ErrDesc, p2, p3 - p2 + 1)
+        t1 = Mid(ErrDesc, p2 - 1, p3 - p2)
+        t1 = Mid(ErrDesc, p2, p3 - p2 + 1)
+        t1 = Mid(ErrDesc, p2, p3 - p2 + 1)
         p2 = InStr(p1, ErrDesc, "FOREIGN KEY (`")
         p3 = InStr(p2, ErrDesc, "`)")
         K1 = Mid(ErrDesc, p2 + 13, p3 - p2 - 12)
         Dim ranz As New ADODB.Recordset
         Set ranz = Nothing
         Err.Clear
-        ranz.Open "SELECT COUNT(0) FROM " & T1 & " WHERE " & sqlwhere, dbv.wCn, adOpenStatic, adLockReadOnly
+        ranz.Open "SELECT COUNT(0) FROM " & t1 & " WHERE " & sqlwhere, dbv.wCn, adOpenStatic, adLockReadOnly
         Erkl0 = ranz.Fields(0)
         Set ranz = Nothing
-        ranz.Open "SELECT * FROM " & T1 & " WHERE " & sqlwhere, dbv.wCn, adOpenStatic, adLockReadOnly
+        ranz.Open "SELECT * FROM " & t1 & " WHERE " & sqlwhere, dbv.wCn, adOpenStatic, adLockReadOnly
         Erkl1 = vNS
         For i = 0 To ranz.Fields.Count - 1
          Erkl1 = Erkl1 & ranz.Fields(i).name & ": " & ranz.Fields(i) & "; "
@@ -3732,19 +3897,19 @@ Private Sub MDIForm_Load()
  Me.cnLab.Left = Me.aCtl.Left - Me.cnLab.Width
  Me.cnLab.Top = Me.aCtl.Top
  Me.cnLab.Height = Me.aCtl.Height
- Dim d1#, D2#
- d1 = Timer
+ Dim D1#, D2#
+ D1 = Timer
  Call dbv.wCn.Execute("SET foreign_key_checks=0")
  Call dbv.wCn.Execute("DELETE FROM `" & tbm(tbar) & "` WHERE zusatz = 1  AND NOT EXISTS (SELECT * FROM `" & tbm(tbdp) & "` WHERE artnr = `" & tbm(tbar) & "`.artnr)")
  Call dbv.wCn.Execute("SET foreign_key_checks=1")
  D2 = Timer
- Debug.Print D2 - d1
- d1 = Now
+ Debug.Print "Zeit für foreign_key_Checks und Delete from arten: ", D2 - D1
+ D1 = Now
  ZeiZa = Me.MFG.Height / Me.MFG.CellHeight * 0.93
  
  Call zeigdienstplan_Click
  D2 = Now
- Debug.Print "Aufbaudauer: ", D2 - d1
+ Debug.Print "Aufbaudauer: ", D2 - D1
  
  Exit Sub
 fehler:
@@ -4300,7 +4465,7 @@ Select Case MfGTyp
      Do While Not rs.EOF
       If tt = "" Then
        myFrag rs0, "SELECT CASE WEEKDAY(Dt)WHEN 0 THEN Mo WHEN 1 THEN Di WHEN 2 THEN Mi WHEN 3 THEN`DO`WHEN 4 THEN Fr WHEN 5 THEN Sa WHEN 6 THEN So END ArtVgb" & vbCrLf & _
-       "FROM (SELECT " & datform(BegD + Reihe - 1 - SZZ) & " Dt)i," & tbm(tbwp) & " WHERE persnr = " & pn(.MouseCol - 1) & " AND ab<=Dt ORDER BY ab DESC LIMIT 1", adOpenStatic, dbv.wCn, adLockReadOnly
+       "FROM (SELECT " & datform(BegD + Reihe - 1 - SZZ) & " Dt)i," & tbm(tbwp) & " WHERE persnr = " & pn(min(UBound(pn), .MouseCol - 1)) & " AND ab<=Dt ORDER BY ab DESC LIMIT 1", adOpenStatic, dbv.wCn, adLockReadOnly
        If Not rs0.BOF Then tt = rs0!ArtVgb
       End If ' tt = "" Then
       tt = tt & rs!ArtNrV & "->" & rs!artnr & "(" & rs!aenddat & "/" & rs!user & "), "
