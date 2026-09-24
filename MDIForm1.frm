@@ -3142,6 +3142,7 @@ Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn As ADODB.Connection, ByRef U
   ' ,DATEDIFF(DATE(CONCAT(YEAR(IF(abk<@gv AND NOT @obvor,@gv,abk))+1,'0101')),DATE(CONCAT(YEAR(IF(abk<@gv AND NOT @obvor,@gv,abk)),'0101'))) jtage
 '   If Jahr = 2018 Then Stop
 ' If UBilh <> 0 Then Stop
+   ' rwaz: COALESCE(...,38.5), da ohne frühere WAZ<>0 sonst NULL => urld (Tage) = 0 (so bei persnr 88 in 2020)
    sql = "SELECT " & vbCrLf & _
    "COALESCE(SUM(urlh),0) urlh,COALESCE(SUM(urlh)/rwaz*5,0,0) urld,COALESCE(CONCAT('Urlaubsanspruch ',IF(obvor,'Übertrag','" & Jahr & "'),': ','\n',GROUP_CONCAT(erkl SEPARATOR '\n'),'\nAnspruch für " & Jahr & ": '" & IIf(nTg, "", ", CAST(ROUND(SUM(urlh),1) AS CHAR(10)),' h, /', CAST(ROUND(rwaz*0.2,1) AS CHAR(10)),' h/d = '") & ",COALESCE(CAST(ROUND(SUM(urlh)/rwaz*5,1)AS CHAR(10)),'0'),' d" & IIf(nTg, "", ",  /',ROUND(SUM(tage*rwaz*0.2)/SUM(tage),3),' h/d (=durchschnittl.Tagesarbeitsstunden " & Jahr & ") = ',COALESCE(CAST(ROUND(SUM(urlh)/(SUM(tage*rwaz*0.2)/SUM(tage)),1)AS CHAR(10)),'0'),' d") & "\nInsg.(+',RPAD('" & Round(-UBilh / IIf(nTg, 7.7, 1), 1) & IIf(nTg, "d", "h") & ")',10,' '),': ',CAST(ROUND(SUM(urlh)-" & REPLACE$(UBilh, ",", ".") & ",1)AS CHAR(10)),' h, /', CAST(ROUND(rwaz*0.2,1) AS CHAR(10)),' h/d = ',COALESCE(CAST(ROUND((SUM(urlh)-" & REPLACE$(UBilh, ",", ".") & ")/rwaz*5,1)AS CHAR(10)),'0'),' d'),'')Erkl" & vbCrLf & _
    "FROM (SELECT obvor,urlh,tage,CONCAT(DATE_FORMAT(abk,'%d.%m.%y'),' - ',DATE_FORMAT(ADDDATE(bisk,-1),'%d.%m.%y'),' = ',LPAD(tage,3,' '),' Tage, " & IIf(nTg, "", "rWAZ: ',LPAD(rwaz,5,' '),' h/Wo, ") & "Url: ',LPAD(i.urlaub,2,' '),' d/a => '" & IIf(nTg, "", ",LPAD(ROUND(urlh,1),5,' '),' h, '") & ",LPAD(IF(rwaz,ROUND(urlh/rwaz*5,1),''),4,' '),' d') Erkl,rwaz,persnr " & vbCrLf & _
@@ -3150,7 +3151,7 @@ Function UrlAnspr(ByVal PNr%, ByVal Jahr%, ByVal Cn As ADODB.Connection, ByRef U
    "    FROM (SELECT ab " & vbCrLf & _
    "     ,COALESCE((SELECT MIN(ab) FROM `" & tbm(tbwp) & "` WHERE ab>wp.ab AND persnr=wp.persnr) " & vbCrLf & _
    "      ,(SELECT IF(aus>0,aus,DATE(99991231)) FROM `" & tbm(tbma) & "` WHERE persnr=wp.persnr)) bis " & vbCrLf & _
-   "     ," & IIf(nTg, "38.5", "IF(waz=0,(SELECT waz FROM " & tbm(tbwp) & " WHERE persnr=wp.persnr AND waz<>0 AND ab<wp.ab ORDER BY ab DESC LIMIT 1),waz)") & " rwaz " & vbCrLf & _
+   "     ," & IIf(nTg, "38.5", "COALESCE(IF(waz=0,(SELECT waz FROM " & tbm(tbwp) & " WHERE persnr=wp.persnr AND waz<>0 AND ab<wp.ab ORDER BY ab DESC LIMIT 1),waz),38.5)") & " rwaz " & vbCrLf & _
    "     ,urlaub,persnr,obvor,gv " & vbCrLf & _
    "     ,IF(obvor,gv,adddate(gv,INTERVAL 1 YEAR)) gb " & vbCrLf & _
    "     FROM (SELECT " & CStr(iru) & " obvor,DATE(CONCAT(" & CStr(Jahr) & ",'0101')) gv,w.* FROM `" & tbm(tbwp) & "` w) wp " & vbCrLf & _
@@ -3296,7 +3297,7 @@ End If
  neu = ArtDp
  If LenB(neu) = 0 Then neu = VgbStd
 '  If akttag = #2/28/2017# Then Stop ' Faschingsdienstag 2017
-' If WAZ = 0 Then WAZ = 38.5
+ If WAZ = 0 Then WAZ = 38.5 ' sonst urlb = 0 und Division durch 0 bei urlhaus (z.B. persnr 88, 1/2020)
 '  If ohneumr = 0 And WAZ <> WAZv And (akttag = tzsbd Or (UBil <> 0 And akttag > tzsbd And WAZv <> 0)) Then ' von Thomas entdeckter Korrekturbedarf
  If nTg = 0 And ohneumr = 0 And WAZ <> WAZv And UBil Then ' von Thomas entdeckter Korrekturbedarf
   Dim WAZd!, WAZvd!
