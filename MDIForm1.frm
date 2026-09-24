@@ -931,11 +931,13 @@ fangnochmalan:
    myFrag zuloe, "DELETE FROM `" & tbm(tbbi) & "` WHERE persnr = " & CStr(Persnr), , dbv.wCn
 '   If persnr = 83 Then Stop
    akttag = abdat
-   sql = "SELECT d.tag,d.artnr,COALESCE(a.Stdn)Stdn,COALESCE(z.ausbez,0)ausbez,COALESCE(z.urlhaus,0)urlhaus" & vbCrLf & _
-         "FROM `" & tbm(tbdp) & "` d " & vbCrLf & _
-         "LEFT JOIN ausbez z USING(persnr,tag)" & vbCrLf & _
+   ' Tage aus Dienstplan und Auszahlungen vereinigen, damit Auszahlungen auch an Tagen ohne Dienstplaneintrag zählen
+   sql = "SELECT t.tag,d.artnr,a.Stdn,COALESCE(z.ausbez,0)ausbez,COALESCE(z.urlhaus,0)urlhaus" & vbCrLf & _
+         "FROM (SELECT tag FROM `" & tbm(tbdp) & "` WHERE persnr=" & Persnr & " UNION SELECT tag FROM `" & tbm(tbab) & "` WHERE persnr=" & Persnr & ") t" & vbCrLf & _
+         "LEFT JOIN `" & tbm(tbdp) & "` d ON d.persnr=" & Persnr & " AND d.tag=t.tag" & vbCrLf & _
+         "LEFT JOIN (SELECT tag,SUM(ausbez)ausbez,SUM(urlhaus)urlhaus FROM `" & tbm(tbab) & "` WHERE persnr=" & Persnr & " GROUP BY tag) z ON z.tag=t.tag" & vbCrLf & _
          "LEFT JOIN `" & tbm(tbar) & "` a ON d.artnr = a.artnr " & vbCrLf & _
-         "WHERE persnr = " & Persnr & " GROUP BY d.tag ORDER BY d.tag"
+         "GROUP BY t.tag ORDER BY t.tag"
 '   sql = "SELECT * FROM `" & tbm(tbdp) & "` d LEFT JOIN `" & tbm(tbar) & "` a on d.artnr = a.artnr WHERE persnr = " & CStr(persnr) & " AND tag = " & Format(akttag, "yyyymmdd")
    Set dp = Nothing
 '    If akttag = #1/1/2012# Then Stop
@@ -962,14 +964,14 @@ fangnochmalan:
     If dp.State = 0 Then
      GoTo fangnochmalan
     End If
+    Do While Not dp.EOF ' zum ersten Eintrag >= akttag vorrücken
+     If dp!Tag >= akttag Then Exit Do
+     dp.MoveNext
+    Loop
     If Not dp.EOF Then
-     If akttag > dp!Tag Then
-      dp.MoveNext
-      If Not dp.EOF Then
-       ausbez = dp!ausbez
-'       If ausbez Then Stop
-       urlhaus = dp!urlhaus
-      End If
+     If dp!Tag = akttag Then ' Auszahlung am eigenen Tag buchen (früher: am Tag nach dem vorigen Dienstplaneintrag)
+      ausbez = dp!ausbez
+      urlhaus = dp!urlhaus
      End If
     End If ' Not dp.EOF Then
 '    If dp.EOF AND (Weekday(akttag) = 7 OR Weekday(akttag) = 1) Then GoTo weiter 'Sa oder So, wenn keine Überstunden da
@@ -982,7 +984,7 @@ fangnochmalan:
 '    Do While Not dp.EOF
 '     akttag=dp!tag
      If Not dp.EOF Then
-      If akttag = dp!Tag Then
+      If akttag = dp!Tag And Not IsNull(dp!artnr) Then ' NULL: nur Auszahlung, kein Dienstplaneintrag
        ArtDp = dp!artnr
        If IsNull(dp!Stdn) Then
         MsgBox "Kann Eintrag " & dp!artnr & " vom " & dp!Tag & " bei " & Kuerzel & " nicht in Stunden umrechnen"
