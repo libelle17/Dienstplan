@@ -1229,6 +1229,24 @@ Function ArtBereinigt$(ByVal s$)
  ArtBereinigt = erg
 End Function ' ArtBereinigt$(s$)
 
+' Personalnummer der aktuellen Zeile in der Tabellenansicht (Wochenplan, Auszahlungen), 0 wenn nicht ermittelbar;
+' ist die Spalte nicht sichtbar, aus der Einschränkung (z.B. "Auszahlungen für ...")
+' aufgerufen in doChange
+Private Function PersNrDerZeile&()
+ Dim i&
+ On Error Resume Next
+ With Me.MFG
+  For i = 0 To .Cols - 1
+   If i > UBound(SpNm, 2) Then Exit For
+   If LCase$(SpNm(azt(MfGTyp), i)) = "persnr" Then
+    If .Row > 0 And .Row < .Rows Then PersNrDerZeile = Val(.TextMatrix(.Row, i))
+    Exit Function
+   End If
+  Next i
+ End With
+ If LCase$(EinsFd(MfGTyp)) = "persnr" Then PersNrDerZeile = Val(REPLACE$(EinsWt(MfGTyp), "'", ""))
+End Function ' PersNrDerZeile&()
+
 ' aufgerufen in tuAufgeben
 Public Sub GetOpenOffice()
  On Error GoTo fehler
@@ -3683,6 +3701,8 @@ bilPSt(jCol - 1) = PSt:  bilNeu(jCol - 1) = False
 '     Debug.Print "doChange vor MFGRefresh: " & Format(Timer - tDC, "0.000") & "s"
     If Not norefresh Then Call MFGRefresh(azgdp)
    Case Else ' nicht dienstplan
+     Dim pnAlt&, pnNeu&
+     If MfGTyp = azgwp Or MfGTyp = azgab Then pnAlt = PersNrDerZeile() ' für die Neuberechnung der Bilanzen
      Call merken(MfGTyp)
      sqlwhere = vNS 'Einschr(MfgTyp)
      imCol = MFG.Col
@@ -3838,6 +3858,11 @@ bilPSt(jCol - 1) = PSt:  bilNeu(jCol - 1) = False
      End If ' .Text <> altText Then
     End If ' prüfeuser
    End If ' obLoe / else
+   If MfGTyp = azgwp Or MfGTyp = azgab Then ' Bilanzen der betroffenen Mitarbeiter einschließlich Folgejahre neu schreiben
+    pnNeu = PersNrDerZeile()
+    If pnAlt > 0 Then Call SQLBilanz(pnAlt)
+    If pnNeu > 0 And pnNeu <> pnAlt Then Call SQLBilanz(pnNeu)
+   End If ' MfGTyp = azgwp Or MfGTyp = azgab Then
   End Select ' case MfGTyp
   Call mfg_leavecell
   .Row = min(aRow, .Rows - 1)
