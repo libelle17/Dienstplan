@@ -741,7 +741,8 @@ Sub tuNeuBerechnen()
  Dim Persnr&, Kuerzel$
  If maAusWahl(Persnr, Kuerzel, "Neuberechnen") Then
    Screen.MousePointer = vbHourglass
-   Call gesBilanz(Persnr, Kuerzel, 0, 0, obschreib:=False)
+'   Call gesBilanz(Persnr, Kuerzel, 0, 0, obschreib:=False)
+   Call SQLBilanz(Persnr)
    Screen.MousePointer = vbNormal
  End If ' maAusWahl(Persnr, Kuerzel, "Neuberechnen", aus, Nachname, Vorname) Then
 End Sub ' tuNeuBerechnen
@@ -848,6 +849,7 @@ Sub tuAusgeben(Optional nurU% = False) ' nur Urlaub
    Print #323, "<B>" & IIf(nurU, "     ", "") & "Tag      " & Chr(9) & IIf(nurU, "         ", "") & "Ursp" & Chr(9) & "Art" & Chr(9) & "Std." & Chr(9) & "Url." & Chr(9) & "Urlstd." & Chr(9) & "Urlh/d" & Chr(9) & "Üst" & Chr(9) & "Fbdg." & Chr(9) & "Kkeintr." & Chr(9) & "geändert" & "</span>"
    Print #323, "<b><b>"
    Call gesBilanz(Persnr, Kuerzel, abdat, bisdat, obschreib:=True, nurU:=nurU)
+   Call SQLBilanz(Persnr) ' gesBilanz schreibt nur bis bisdat und löscht die Folgejahre
 '   Call wp.Open("SELECT * FROM `" & tbm(tbwp) & "` WHERE persnr = " & PersNr & " ORDER BY ab", dbv.wCn, adOpenStatic, adLockOptimistic)
    myFrag wp, "SELECT * FROM `" & tbm(tbwp) & "` WHERE persnr = " & Persnr & " ORDER BY ab", adOpenStatic, dbv.wCn, adLockOptimistic
    If Not wp.BOF Then
@@ -1117,6 +1119,92 @@ fehler:
   Case vbIgnore: Call MsgBox("Setze fort"): Resume Next
  End Select
 End Function ' GesBilanz
+
+' Jahresbilanzen (Urlaub, Urlaubsstunden, Überstunden, Fortbildung, Planstunden) per SQL neu schreiben,
+' Persnr = 0: alle Mitarbeiter; rechnet wie gesBilanz/EinzelBilanz/UrlAnspr (s. Bilanz.sql), aber alle Tage in einem Befehl.
+' Urlaub in Tagen = Urlaubsstunden / (0,2 * WAZ), vor 2020 und in der Ausbildung WAZ = 38,5
+' aufgerufen in tuNeuBerechnen, tuAusgeben, NeuBerechnen_Click, doChange
+Function SQLBilanz(ByVal Persnr&) As Boolean
+ Dim sql$, rAF&, altTO&, obTrans%
+ On Error GoTo fehler
+ If dbv.wCn.DefaultDatabase = "" Then
+  dbv.wCn.Close
+  dbv.wCn.Open
+ End If
+ syscmd 4, "Berechne Bilanzen per SQL" & IIf(Persnr, ": " & Persnr, "")
+ sql = "INSERT INTO `" & tbm(tbbi) & "`(persnr,jahr,urlaub,urlstd,überstunden,fortbildung,planstunden)" & vbLf
+ sql = sql & "WITH RECURSIVE" & vbLf
+ sql = sql & "ma AS (SELECT m.persnr," & vbLf
+ sql = sql & "        COALESCE((SELECT MIN(ab) FROM `" & tbm(tbwp) & "` w WHERE w.persnr=m.persnr),DATE(20040701)) von," & vbLf
+ sql = sql & "        IF(m.aus>0,m.aus,MAKEDATE(YEAR(CURDATE())+4,1)-INTERVAL 1 DAY) bis," & vbLf
+ sql = sql & "        IF(m.ausbende>0,m.ausbende,DATE(19000101)) ausbende" & vbLf
+ sql = sql & "       FROM `" & tbm(tbma) & "` m WHERE (0=" & Persnr & " OR m.persnr=" & Persnr & "))," & vbLf
+ sql = sql & "wp AS (SELECT w.*,COALESCE(LEAD(ab) OVER (PARTITION BY persnr ORDER BY ab),DATE(99991231)) nab FROM `" & tbm(tbwp) & "` w WHERE ab<>0)," & vbLf
+ sql = sql & "-- Urlaubsanspruch in Stunden je Jahr (wie UrlAnspr, iru=0)" & vbLf
+ sql = sql & "jr AS (SELECT persnr,YEAR(von) jahr,von,bis,ausbende FROM ma UNION ALL SELECT persnr,jahr+1,von,bis,ausbende FROM jr WHERE jahr<YEAR(bis))," & vbLf
+ sql = sql & "jr2 AS (SELECT jr.*,MAKEDATE(jahr,1) gv,MAKEDATE(jahr+1,1) gb," & vbLf
+ sql = sql & "         (GREATEST(von,MAKEDATE(jahr,1))<DATE(20200101) OR GREATEST(von,MAKEDATE(jahr,1))<ausbende) ntg FROM jr)," & vbLf
+ sql = sql & "seg AS (SELECT w.persnr,w.ab,w.waz,w.urlaub," & vbLf
+ sql = sql & "         COALESCE(w.nab2,(SELECT IF(aus>0,aus,DATE(99991231)) FROM `" & tbm(tbma) & "` WHERE persnr=w.persnr)) bis," & vbLf
+ sql = sql & "         COALESCE(IF(w.waz=0,(SELECT waz FROM `" & tbm(tbwp) & "` x WHERE x.persnr=w.persnr AND x.waz<>0 AND x.ab<w.ab ORDER BY x.ab DESC LIMIT 1),w.waz),38.5) rwaz" & vbLf
+ sql = sql & "        FROM (SELECT `" & tbm(tbwp) & "`.*,LEAD(ab) OVER (PARTITION BY persnr ORDER BY ab) nab2 FROM `" & tbm(tbwp) & "`) w)," & vbLf
+ sql = sql & "ansp AS (SELECT j.persnr,j.jahr," & vbLf
+ sql = sql & "          SUM(DATEDIFF(LEAST(s.bis,j.gb),GREATEST(s.ab,j.gv))/DATEDIFF(j.gb,j.gv)*IF(j.ntg,38.5,s.rwaz)*0.2*s.urlaub) uaah" & vbLf
+ sql = sql & "         FROM jr2 j JOIN seg s ON s.persnr=j.persnr AND s.bis>j.gv AND s.ab<j.gb" & vbLf
+ sql = sql & "         GROUP BY j.persnr,j.jahr)," & vbLf
+ sql = sql & "-- Tage" & vbLf
+ sql = sql & "tg AS (SELECT ma.persnr,ma.bis,ma.ausbende,ma.von + INTERVAL s.seq DAY tag FROM ma JOIN seq_0_to_40000 s ON s.seq<=DATEDIFF(ma.bis,ma.von))," & vbLf
+ sql = sql & "t1 AS (SELECT tg.persnr,tg.tag,tg.bis," & vbLf
+ sql = sql & "        (tg.tag<DATE(20200101) OR tg.tag<tg.ausbende) ntg," & vbLf
+ sql = sql & "        IF(wp.waz=0,38.5,wp.waz) waz," & vbLf
+ sql = sql & "        IF(obft(tg.tag)>0 OR DATE_FORMAT(tg.tag,'%m%d')='1231','WF'," & vbLf
+ sql = sql & "           CASE DAYOFWEEK(tg.tag) WHEN 1 THEN wp.so WHEN 2 THEN wp.mo WHEN 3 THEN wp.di WHEN 4 THEN wp.mi" & vbLf
+ sql = sql & "                                  WHEN 5 THEN wp.do WHEN 6 THEN wp.fr ELSE wp.sa END) vgb," & vbLf
+ sql = sql & "        d.artnr dp," & vbLf
+ sql = sql & "        COALESCE(z.ausbez,0) ausbez, COALESCE(z.urlhaus,0) urlhaus," & vbLf
+ sql = sql & "        (tg.tag=MAKEDATE(YEAR(tg.tag),1) OR tg.tag=(SELECT von FROM ma WHERE ma.persnr=tg.persnr)) jahranfang" & vbLf
+ sql = sql & "       FROM tg" & vbLf
+ sql = sql & "       LEFT JOIN wp ON wp.persnr=tg.persnr AND tg.tag>=wp.ab AND tg.tag<wp.nab" & vbLf
+ sql = sql & "       LEFT JOIN `" & tbm(tbdp) & "` d ON d.persnr=tg.persnr AND d.tag=tg.tag" & vbLf
+ sql = sql & "       LEFT JOIN (SELECT persnr,tag,SUM(ausbez) ausbez,SUM(urlhaus) urlhaus FROM `" & tbm(tbab) & "` GROUP BY persnr,tag) z ON z.persnr=tg.persnr AND z.tag=tg.tag)," & vbLf
+ sql = sql & "t2 AS (SELECT t1.*," & vbLf
+ sql = sql & "        IF(TRIM(vgb) REGEXP '^[0-9]+(,[0-9]+)?$',REPLACE(TRIM(vgb),',','.')+0,0) vstd," & vbLf
+ sql = sql & "        IF(TRIM(dp) REGEXP '^[0-9]+(,[0-9]+)?$',REPLACE(TRIM(dp),',','.')+0,NULL) dstd," & vbLf
+ sql = sql & "        BINARY dp IN ('g','u','uw') AND NOT (ntg AND BINARY vgb='-' AND BINARY dp='g') urltag" & vbLf
+ sql = sql & "       FROM t1)," & vbLf
+ sql = sql & "t3 AS (SELECT t2.persnr,t2.tag,t2.bis,t2.ntg,t2.waz,t2.vstd," & vbLf
+ sql = sql & "        -vstd + CASE WHEN dp IS NULL OR LENGTH(dp)=0 THEN vstd" & vbLf
+ sql = sql & "                     WHEN BINARY dp IN ('b','hFT','WF','k','ki','f','fw','g','u','uw','su') THEN vstd" & vbLf
+ sql = sql & "                     ELSE COALESCE(dstd,0) END - ausbez ue," & vbLf
+ sql = sql & "        (BINARY dp IN ('f','fw')) fb," & vbLf
+ sql = sql & "        IF(urltag,IF(ntg,7.7,vstd),0) + urlhaus - IF(jahranfang,COALESCE(a.uaah,0),0) uh" & vbLf
+ sql = sql & "       FROM t2 LEFT JOIN ansp a ON a.persnr=t2.persnr AND a.jahr=YEAR(t2.tag))" & vbLf
+ sql = sql & "SELECT persnr,YEAR(tag) jahr," & vbLf
+ sql = sql & "       ROUND(uh_kum/(0.2*IF(ntg,38.5,waz)),1) urlaub, ROUND(uh_kum,1) urlstd," & vbLf
+ sql = sql & "       ROUND(ue_kum,1) ueberstunden, ROUND(fb_kum,1) fortbildung, ROUND(pst_kum,1) planstunden" & vbLf
+ sql = sql & "FROM (SELECT persnr,tag,bis,ntg,waz," & vbLf
+ sql = sql & "       SUM(uh)   OVER w uh_kum," & vbLf
+ sql = sql & "       SUM(ue)   OVER w ue_kum," & vbLf
+ sql = sql & "       SUM(fb)   OVER w fb_kum," & vbLf
+ sql = sql & "       SUM(vstd) OVER w pst_kum" & vbLf
+ sql = sql & "      FROM t3 WINDOW w AS (PARTITION BY persnr ORDER BY tag)) k" & vbLf
+ sql = sql & "WHERE DATE_FORMAT(tag,'%m%d')='1231' OR tag=bis" & vbLf
+ altTO = dbv.wCn.CommandTimeout
+ dbv.wCn.CommandTimeout = 600
+ dbv.wCn.BeginTrans: obTrans = True
+ dbv.wCn.Execute "DELETE FROM `" & tbm(tbbi) & "`" & IIf(Persnr, " WHERE persnr = " & Persnr, ""), rAF
+ dbv.wCn.Execute sql, rAF
+ dbv.wCn.CommitTrans: obTrans = False
+ dbv.wCn.CommandTimeout = altTO
+ syscmd 5
+ SQLBilanz = True
+ Exit Function
+fehler:
+ If obTrans Then dbv.wCn.RollbackTrans ' alte Bilanzen bleiben erhalten
+ If altTO Then dbv.wCn.CommandTimeout = altTO
+ syscmd 5
+ MsgBox "FNr: " + CStr(Err.Number) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbExclamation, "Aufgefangener Fehler in SQLBilanz(" & Persnr & ")/" + App.Path
+End Function ' SQLBilanz(Persnr&)
 
 ' aufgerufen in tuAufgeben
 Public Sub GetOpenOffice()
@@ -1442,6 +1530,8 @@ Private Sub NeuBerechnen_Click()
  Set ma = Nothing
 ' ma.Open "SELECT * FROM `" & tbm(tbma) & "`", dbv.wCn, adOpenStatic, adLockOptimistic
  myFrag ma, "SELECT * FROM `" & tbm(tbma) & "`", adOpenStatic, dbv.wCn, adLockReadOnly
+ Call SQLBilanz(0) ' alle Mitarbeiter in einem SQL-Befehl
+ If False Then ' bisher gesBilanz je Mitarbeiter
  For j = 0 To maZ - 1
   If True Or ma!Persnr = 70 Then
 '  If True Then
@@ -1510,6 +1600,7 @@ Private Sub NeuBerechnen_Click()
 w1:
    ma.Move 1
   Next j
+ End If ' False
 '  Close #7
   Screen.MousePointer = vbNormal
   Call MFGRefresh(azgdp)
@@ -3559,6 +3650,9 @@ bilPSt(jCol - 1) = PSt:  bilNeu(jCol - 1) = False
 ' Debug.Print "4 EinzelBilanz+UPDATE: " & Format(Timer - t4, "0.000") & "s"
       End If ' obProt Then
      Next jRow
+    Next jCol
+    For jCol = aCol To eCol ' Bilanzen einschließlich Folgejahre per SQL neu schreiben
+     If jCol - 1 >= LBound(pn) And jCol - 1 <= UBound(pn) Then Call SQLBilanz(pn(jCol - 1))
     Next jCol
 '    dbv.wCn.Execute ("COMMIT")
     MFG.Redraw = True
