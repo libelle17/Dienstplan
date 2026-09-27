@@ -1206,6 +1206,29 @@ fehler:
  MsgBox "FNr: " + CStr(Err.Number) + vbCrLf + "Source: " + IIf(IsNull(Err.source), vNS, CStr(Err.source)) + vbCrLf + "Description: " + Err.Description, vbExclamation, "Aufgefangener Fehler in SQLBilanz(" & Persnr & ")/" + App.Path
 End Function ' SQLBilanz(Persnr&)
 
+' Dienstplaneintrag vor dem Speichern bereinigen: Steuerzeichen (< 32, U+0080-U+009F) entfernen, geschützte Leerzeichen
+' wie Leerzeichen behandeln, Leerzeichen am Rand entfernen, bekannte Arten in ihre Schreibweise bringen
+' (sonst erkennen EinzelBilanz und Bilanz.sql z.B. "u " oder "U" nicht als Urlaub)
+' aufgerufen in doChange
+Function ArtBereinigt$(ByVal s$)
+ Dim i&, c&, erg$
+ For i = 1 To Len(s)
+  c = AscW(Mid$(s, i, 1)) And &HFFFF&
+  If c = &HA0& Then
+   erg = erg & " "
+  ElseIf c >= 32 And (c < &H80& Or c > &H9F&) Then
+   erg = erg & Mid$(s, i, 1)
+  End If
+ Next i
+ erg = Trim$(erg)
+ Select Case LCase$(erg)
+  Case "wf": erg = "WF"
+  Case "hft": erg = "hFT"
+  Case "-", "b", "k", "ki", "f", "fw", "g", "u", "uw", "su", "ü", "üw": erg = LCase$(erg)
+ End Select
+ ArtBereinigt = erg
+End Function ' ArtBereinigt$(s$)
+
 ' aufgerufen in tuAufgeben
 Public Sub GetOpenOffice()
  On Error GoTo fehler
@@ -3515,6 +3538,7 @@ Private Sub doChange(Optional obLoe%, Optional Qu$, Optional norefresh As Boolea
     If Not obLoe Then
      pos = InStr(Cb1.Text, Chr(9))
      If pos > 0 Then nText = Left(Cb1.Text, pos - 1) Else nText = Cb1.Text
+     nText = ArtBereinigt(nText)
     End If ' Not obLoe Then
 '    dbv.wCn.Execute ("START TRANSACTION")
     For jCol = aCol To eCol
