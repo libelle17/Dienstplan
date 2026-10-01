@@ -1031,7 +1031,8 @@ w1:
      'If Int(dp!Tag) = #4/14/2020# Then Stop
      Dim sqlteil$, reintct&, rgeaegeae
 '     sqlteil = " FROM quelle.eintraege WHERE zeitpunkt BETWEEN " & Format(akttag, "yyyymmdd") & " AND " & Format(akttag + 1, "yyyymmdd") & " AND (art = '" & kuerzel & "' OR ((inhalt COLLATE latin1_bin LIKE '%Mitarbeiter: " & kuerzel & "%' OR inhalt COLLATE latin1_bin LIKE '% " & kuerzel & "' OR inhalt COLLATE latin1_bin LIKE '% (" & kuerzel & ")') AND NOT inhalt COLLATE latin1_bin LIKE '%mit " & kuerzel & "%'))"
-     sqlteil = " FROM quelle.eintraege WHERE zeitpunkt BETWEEN " & Format(akttag, "yyyymmdd") & " AND " & Format(akttag + 1, "yyyymmdd") & " AND (art = '" & Kuerzel & "' OR ((inhalt RLIKE 'Mitarbeiter: " & Kuerzel & "[[:>:]]' /* OR inhalt LIKE '% " & Kuerzel & "' */ OR inhalt LIKE '% (" & Kuerzel & ")') AND NOT inhalt LIKE '%mit " & Kuerzel & "%'))"
+     ' seit Medical Office (17.03.2025) steht das Mitarbeiterkürzel in ersteller, vorher in art
+     sqlteil = " FROM quelle.eintraege WHERE zeitpunkt BETWEEN " & Format(akttag, "yyyymmdd") & " AND " & Format(akttag + 1, "yyyymmdd") & " AND (IF(zeitpunkt < 20250317, art, ersteller) = '" & Kuerzel & "' OR ((inhalt RLIKE 'Mitarbeiter: " & Kuerzel & "[[:>:]]' /* OR inhalt LIKE '% " & Kuerzel & "' */ OR inhalt LIKE '% (" & Kuerzel & ")') AND NOT inhalt LIKE '%mit " & Kuerzel & "%'))"
 '     reint.Open "SELECT COUNT(0) ct" & sqlteil, dbv.wCn, adOpenStatic, adLockReadOnly
      myFrag reint, "SELECT COUNT(0) ct" & sqlteil, adOpenStatic, dbv.wCn, adLockReadOnly
      reintct = reint!ct
@@ -1053,7 +1054,7 @@ w1:
         ElseIf (reint!ct >= abzahlda And (ArtDp = "b" Or iststd = 0)) Then
 '        rpid.Open "SELECT GROUP_CONCAT(DISTINCT pat_id ORDER BY pat_id) pid " & sqlteil, dbv.wCn, adOpenStatic, adLockReadOnly
 '        pid = "; Patid: " & rpid!pid
-         pid = dbv.wCn.Execute("SELECT GROUP_CONCAT(CONCAT('\n         ',lpad(pat_id,5,' '),' ',DATE_FORMAT(zeitpunkt,'%d.%m.%y %H:%i '),art,' ',inhalt)) pid " & sqlteil)!pid
+         pid = dbv.wCn.Execute("SELECT GROUP_CONCAT(CONCAT('\n         ',lpad(pat_id,5,' '),' ',DATE_FORMAT(zeitpunkt,'%d.%m.%y %H:%i '),ersteller,' ',art,' ',inhalt)) pid " & sqlteil)!pid
          obfalsch = 2
         End If
        End If
