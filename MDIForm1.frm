@@ -1054,7 +1054,9 @@ w1:
         ElseIf (reint!ct >= abzahlda And (ArtDp = "b" Or iststd = 0)) Then
 '        rpid.Open "SELECT GROUP_CONCAT(DISTINCT pat_id ORDER BY pat_id) pid " & sqlteil, dbv.wCn, adOpenStatic, adLockReadOnly
 '        pid = "; Patid: " & rpid!pid
-         pid = dbv.wCn.Execute("SELECT GROUP_CONCAT(CONCAT('\n         ',lpad(pat_id,5,' '),' ',DATE_FORMAT(zeitpunkt,'%d.%m.%y %H:%i '),ersteller,' ',art,' ',inhalt)) pid " & sqlteil)!pid
+         ' begrenzt, da lange GROUP_CONCAT-Ergebnisse (z.B. gs am Wochenende) beim ODBC-Treiber einen OLE DB-Fehler auslösen
+         pid = dbv.wCn.Execute("SELECT CAST(LEFT(COALESCE(GROUP_CONCAT(CONCAT('\n         ',lpad(pat_id,5,' '),' ',DATE_FORMAT(zeitpunkt,'%d.%m.%y %H:%i '),ersteller,' ',art,' ',inhalt) ORDER BY zeitpunkt LIMIT 30),''),4000) AS CHAR(4000)) pid " & sqlteil)!pid
+         If reint!ct > 30 Then pid = pid & vbLf & "         ... (insgesamt " & reint!ct & " Einträge)"
          obfalsch = 2
         End If
        End If
